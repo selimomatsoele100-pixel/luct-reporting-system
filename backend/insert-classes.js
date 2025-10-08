@@ -1,0 +1,45 @@
+const pool = require('./config/database');
+
+const insertClasses = async () => {
+  try {
+    const query = `
+      INSERT INTO classes (name, faculty) VALUES 
+      ('BIT-1A', 'FICT'),
+      ('BIT-1B', 'FICT'),
+      ('BIT-2A', 'FICT'),
+      ('BIT-2B', 'FICT'),
+      ('BIT-3A', 'FICT'),
+      ('BIT-3B', 'FICT'),
+      ('DIT-1A', 'FICT'),
+      ('DIT-1B', 'FICT'),
+      ('DIT-2A', 'FICT'),
+      ('DIT-2B', 'FICT'),
+      ('BBA-1A', 'FBMG'),
+      ('BBA-1B', 'FBMG'),
+      ('BBA-2A', 'FBMG'),
+      ('BBA-2B', 'FBMG'),
+      ('BBA-3A', 'FBMG'),
+      ('BBA-3B', 'FBMG'),
+      ('BCOM-1A', 'FBMG'),
+      ('BCOM-1B', 'FBMG'),
+      ('BARCH-1A', 'FABE'),
+      ('BARCH-1B', 'FABE'),
+      ('BARCH-2A', 'FABE'),
+      ('BARCH-2B', 'FABE'),
+      ('BCE-1A', 'FABE'),
+      ('BCE-1B', 'FABE'),
+      ('BCE-2A', 'FABE'),
+      ('BCE-2B', 'FABE')
+      ON CONFLICT DO NOTHING;
+    `;
+    
+    await pool.query(query);
+    console.log('✅ Classes inserted successfully!');
+  } catch (error) {
+    console.error('❌ Error inserting classes:', error);
+  } finally {
+    process.exit();
+  }
+};
+
+insertClasses();
