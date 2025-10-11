@@ -138,7 +138,7 @@ const Register = () => {
                 disabled={loading}
               >
                 <option value="">Select Role</option>
-                <option value={ROLES.STUDENT}>Student Representative</option>
+                <option value={ROLES.STUDENT}>Student (SU)</option>
                 <option value={ROLES.LECTURER}>Lecturer</option>
                 <option value={ROLES.PRL}>Principal Lecturer (PRL)</option>
                 <option value={ROLES.PL}>Program Leader (PL)</option>

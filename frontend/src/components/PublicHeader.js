@@ -12,13 +12,7 @@ const PublicHeader = () => {
           <div className="nav-links">
             <Link to="/public" className={location.pathname === '/public' ? 'active' : ''}>
               Home
-            </Link>
-            <a href="#features" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
-              Features
-            </a>
-            <a href="#about" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
-              About
-            </a>
+            </Link>         
           </div>
         </div>
         
