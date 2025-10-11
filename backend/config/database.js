@@ -1,51 +1,37 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Validate environment variables
-const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
-const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+let pool;
 
-if (missingVars.length > 0) {
-  console.error('❌ Missing required environment variables:', missingVars);
-  console.log('💡 Please check your .env file');
-  process.exit(1);
+if (process.env.DATABASE_URL) {
+  console.log('🌐 Using DATABASE_URL for connection');
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  });
+} else {
+    console.log('🖥️ Using LOCAL database connection');
+    pool = new Pool({
+      user: process.env.DB_USER || 'postgres',
+      host: process.env.DB_HOST || 'localhost',
+      database: process.env.DB_NAME || 'luct_reporting',
+      password: process.env.DB_PASSWORD || '123456',
+      port: process.env.DB_PORT || 5432,
+    });
 }
 
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
-  connectionTimeoutMillis: 10000, // How long to wait for a connection
-  maxUses: 7500, // Close a client after it has been used this many times
-});
-
-// Test connection on startup
-const testConnection = async () => {
+(async () => {
   try {
     const client = await pool.connect();
     console.log('✅ Connected to PostgreSQL database successfully');
-    console.log(`📊 Database: ${process.env.DB_NAME}`);
+    console.log(`📊 Mode: ${process.env.DATABASE_URL ? 'ONLINE (Render / Cloud)' : 'LOCAL'}`);
     client.release();
-  } catch (error) {
+  } catch (err) {
     console.error('❌ Failed to connect to PostgreSQL database:');
-    console.error('   Error:', error.message);
-    console.error('   Please check:');
-    console.error('   - Database server is running');
-    console.error('   - Database credentials in .env file');
-    console.error('   - Database exists: ' + process.env.DB_NAME);
-    process.exit(1);
+    console.error('   →', err.message);
   }
-};
+})();
 
-testConnection();
-
-pool.on('error', (err) => {
-  console.error('❌ Database pool error:', err);
-  // Don't exit process here, let the app handle it
-});
-
-module.exports = pool;
+module.exports = { pool, query: (text, params) => pool.query(text, params) };

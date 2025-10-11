@@ -1,10 +1,32 @@
-const { pool } = require('../config/db');
+// backend/init-db.js
+require('dotenv').config();
+const { Pool } = require('pg');
+
+// ✅ Create a pool using DATABASE_URL (works locally & on Render)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 
+    `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+});
 
 const initDatabase = async () => {
   try {
-    // Create tables
+    console.log("🚀 Starting database initialization...");
+
+    // Drop tables in safe dependency order
     await pool.query(`
-      -- Users table
+      DROP TABLE IF EXISTS class_assignments CASCADE;
+      DROP TABLE IF EXISTS complaints CASCADE;
+      DROP TABLE IF EXISTS reports CASCADE;
+      DROP TABLE IF EXISTS courses CASCADE;
+      DROP TABLE IF EXISTS classes CASCADE;
+      DROP TABLE IF EXISTS users CASCADE;
+    `);
+
+    console.log("🧱 Creating tables...");
+
+    // Create users table first
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -16,8 +38,10 @@ const initDatabase = async () => {
         program VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
-      -- Classes table
+    // Create classes table
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS classes (
         id SERIAL PRIMARY KEY,
         class_name VARCHAR(100) NOT NULL,
@@ -27,8 +51,10 @@ const initDatabase = async () => {
         assigned_lecturer_id INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
-      -- Courses table
+    // Create courses table
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS courses (
         id SERIAL PRIMARY KEY,
         course_code VARCHAR(20) UNIQUE NOT NULL,
@@ -39,8 +65,10 @@ const initDatabase = async () => {
         assigned_prl_id INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
-      -- Reports table
+    // Create reports table
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS reports (
         id SERIAL PRIMARY KEY,
         faculty VARCHAR(50) NOT NULL,
@@ -65,8 +93,10 @@ const initDatabase = async () => {
         status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'student_approved', 'prl_approved', 'rejected')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
-      -- Complaints table
+    // Create complaints table
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS complaints (
         id SERIAL PRIMARY KEY,
         complainant_id INTEGER REFERENCES users(id) NOT NULL,
@@ -82,8 +112,10 @@ const initDatabase = async () => {
         responded_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
-      -- Class assignments table
+    // Create class assignments table
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS class_assignments (
         id SERIAL PRIMARY KEY,
         class_id INTEGER REFERENCES classes(id),
@@ -93,9 +125,10 @@ const initDatabase = async () => {
       );
     `);
 
-    // Insert initial data
+    console.log("✅ Tables created successfully. Inserting seed data...");
+
+    // Insert sample users (password: password123)
     await pool.query(`
-      -- Insert default users (password is 'password123' encrypted)
       INSERT INTO users (name, email, password, role, faculty, program) VALUES
       ('Admin PL', 'pl@luct.ac.ls', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'pl', 'FICT', 'IT'),
       ('PRL FICT', 'prl@fict.luct.ac.ls', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'prl', 'FICT', 'IT'),
@@ -103,15 +136,19 @@ const initDatabase = async () => {
       ('Student Rep', 'student@luct.ac.ls', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'student', 'FICT', 'IT'),
       ('FMG Director', 'fmg@luct.ac.ls', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'fmg', 'FICT', 'IT')
       ON CONFLICT (email) DO NOTHING;
+    `);
 
-      -- Insert classes
+    // Insert sample classes
+    await pool.query(`
       INSERT INTO classes (class_name, faculty, total_students, program) VALUES
       ('IT Year 1', 'FICT', 50, 'Information Technology'),
       ('IT Year 2', 'FICT', 45, 'Information Technology'),
       ('BIT Year 1', 'FICT', 40, 'Business IT')
       ON CONFLICT DO NOTHING;
+    `);
 
-      -- Insert courses
+    // Insert sample courses
+    await pool.query(`
       INSERT INTO courses (course_code, course_name, faculty, program) VALUES
       ('DIWA2110', 'Web Application Development', 'FICT', 'Information Technology'),
       ('DIPR2110', 'Programming Fundamentals', 'FICT', 'Information Technology'),
@@ -119,15 +156,16 @@ const initDatabase = async () => {
       ON CONFLICT (course_code) DO NOTHING;
     `);
 
-    console.log('✅ Database initialized successfully!');
+    console.log("🎉 Database initialized successfully!");
   } catch (error) {
-    console.error('❌ Error initializing database:', error);
+    console.error("❌ Error initializing database:", error);
   } finally {
-    pool.end();
+    await pool.end();
+    console.log("🔒 Connection closed.");
   }
 };
 
-// Run initialization if called directly
+// Run if called directly
 if (require.main === module) {
   initDatabase();
 }
