@@ -7,7 +7,6 @@ const PublicDashboard = () => {
     <div className="public-dashboard">
       <PublicHeader />
       <div className="container">
-        {/* Hero Section */}
         <div className="public-hero">
           <h1>LUCT Reporting System</h1>
           <p>
@@ -24,10 +23,8 @@ const PublicDashboard = () => {
           </div>
         </div>
 
-        {/* Features Grid */}
         <div className="features-grid">
           <div className="feature-card">
-            <div className="feature-icon">📊</div>
             <h3>Academic Reporting</h3>
             <p>
               Lecturers can easily create and submit detailed class reports including 
@@ -36,7 +33,6 @@ const PublicDashboard = () => {
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">👨‍🏫</div>
             <h3>Faculty Monitoring</h3>
             <p>
               Principal Lecturers and Program Leaders can monitor class activities, 
@@ -45,7 +41,6 @@ const PublicDashboard = () => {
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">⭐</div>
             <h3>Rating & Feedback</h3>
             <p>
               Students can provide valuable feedback and ratings for courses and lecturers, 
@@ -54,7 +49,6 @@ const PublicDashboard = () => {
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">🔄</div>
             <h3>Real-time Tracking</h3>
             <p>
               Monitor class attendance, report submissions, and approval workflows in 
@@ -63,7 +57,6 @@ const PublicDashboard = () => {
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">📋</div>
             <h3>Complaint Management</h3>
             <p>
               Structured system for submitting and resolving academic complaints with 
@@ -72,7 +65,6 @@ const PublicDashboard = () => {
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">🏫</div>
             <h3>Multi-Faculty Support</h3>
             <p>
               Supports FICT, FBMG, FABE faculties with role-based access control for 
@@ -81,7 +73,6 @@ const PublicDashboard = () => {
           </div>
         </div>
 
-        {/* Statistics Section */}
         <div style={{ marginTop: '60px', textAlign: 'center' }}>
           <div className="stats-grid">
             <div className="stat-card">
@@ -103,7 +94,6 @@ const PublicDashboard = () => {
           </div>
         </div>
 
-        {/* Call to Action */}
         <div style={{ textAlign: 'center', marginTop: '60px', padding: '40px' }}>
           <h2 style={{ color: '#f8fafc', marginBottom: '20px' }}>Ready to Get Started?</h2>
           <p style={{ color: '#cbd5e1', marginBottom: '30px', maxWidth: '600px', margin: '0 auto' }}>

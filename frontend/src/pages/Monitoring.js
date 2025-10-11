@@ -138,7 +138,7 @@ const Monitoring = () => {
             {filteredData.length > 0 && (
               <div className="export-buttons">
                 <button onClick={handleExportExcel} className="btn btn-success">
-                  📊 Export to Excel
+                  Export to Excel
                 </button>
               </div>
             )}
@@ -150,7 +150,6 @@ const Monitoring = () => {
             </div>
           )}
 
-          {/* Filters */}
           <div className="monitoring-filters">
             <div className="filter-row">
               <div className="form-group">
@@ -204,7 +203,6 @@ const Monitoring = () => {
             </div>
           </div>
 
-          {/* Statistics */}
           <div className="stats-grid">
             <div className="stat-card">
               <h3>Total Classes</h3>
@@ -233,7 +231,6 @@ const Monitoring = () => {
             </div>
           </div>
 
-          {/* Attendance Table */}
           <div className="attendance-table">
             <table className="table">
               <thead>

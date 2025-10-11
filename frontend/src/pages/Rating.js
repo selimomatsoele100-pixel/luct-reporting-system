@@ -221,7 +221,7 @@ const Rating = () => {
             {ratings.length > 0 && (
               <div className="export-buttons">
                 <button onClick={handleExportExcel} className="btn btn-success">
-                  📊 Export to Excel
+                  Export to Excel
                 </button>
               </div>
             )}
