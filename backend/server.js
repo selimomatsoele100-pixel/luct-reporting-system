@@ -13,7 +13,6 @@ const PORT = process.env.PORT || 10000;
 // 🧠 DATABASE CONFIGURATION
 // ======================================================
 let pool;
-
 if (process.env.DATABASE_URL) {
   console.log("🌐 Using DATABASE_URL for connection");
   pool = new Pool({
@@ -31,52 +30,44 @@ if (process.env.DATABASE_URL) {
   });
 }
 
-// Test DB connection
 pool.connect()
   .then(client => {
     console.log('✅ Connected to PostgreSQL database successfully');
     console.log(`📊 Database: ${process.env.DB_NAME || 'Render Cloud DB'}`);
     client.release();
   })
-  .catch(err => {
-    console.error('❌ Failed to connect to PostgreSQL database:', err.message);
-  });
+  .catch(err => console.error('❌ DB connection failed:', err.message));
 
-pool.on('error', (err) => {
-  console.error('⚠️ Unexpected database error:', err);
-});
+pool.on('error', (err) => console.error('⚠️ Unexpected DB error:', err));
 
 // ======================================================
-// 🧱 MIDDLEWARE (CORS + JSON)
+// 🧱 MIDDLEWARE
 // ======================================================
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://animated-jelly-6d2f4d.netlify.app',
   'https://luct-reporting-system.vercel.app',
-  'https://luct-reporting-system-lac.vercel.app'
+  'https://luct-reporting-system-lac.vercel.app',
+  'https://animated-jelly-6d2f4d.netlify.app'
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-
-      // ✅ Allow Vercel, Netlify, and local
       if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.netlify.app')) {
         callback(null, true);
       } else {
-        console.warn(`🚫 Blocked CORS request from: ${origin}`);
+        console.warn(`🚫 Blocked CORS from: ${origin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true,
   })
 );
-
 app.use(express.json());
 
 // ======================================================
-// 🧩 MOCK DATA (temporary demo data)
+// 🧩 MOCK DATA
 // ======================================================
 const mockUsers = [
   { id: 1, name: 'Test Student', email: 'student@luct.ac.ls', role: 'student', faculty: 'FICT', program: 'Information Technology', class_id: 1 },
@@ -86,56 +77,50 @@ const mockUsers = [
   { id: 5, name: 'FMG Director', email: 'fmg@luct.ac.ls', role: 'fmg', faculty: 'FICT', program: 'Information Technology' }
 ];
 
-const mockClasses = [
-  { id: 1, class_name: 'IT Year 1', faculty: 'FICT', program: 'Information Technology', total_students: 50, assigned_lecturer_id: 2 },
-  { id: 2, class_name: 'IT Year 2', faculty: 'FICT', program: 'Information Technology', total_students: 45 },
-  { id: 3, class_name: 'BIT Year 1', faculty: 'FICT', program: 'Business IT', total_students: 40 }
+const mockCourses = [
+  { id: 1, course_code: 'DIWA2110', course_name: 'Web Application Development', faculty: 'FICT', program: 'IT', assigned_lecturer_id: 2 },
+  { id: 2, course_code: 'DIPR2110', course_name: 'Programming Fundamentals', faculty: 'FICT', program: 'IT' },
+  { id: 3, course_code: 'DIDS2110', course_name: 'Database Systems', faculty: 'FICT', program: 'IT' }
 ];
 
-const mockCourses = [
-  { id: 1, course_code: 'DIWA2110', course_name: 'Web Application Development', faculty: 'FICT', program: 'Information Technology', assigned_lecturer_id: 2 },
-  { id: 2, course_code: 'DIPR2110', course_name: 'Programming Fundamentals', faculty: 'FICT', program: 'Information Technology' },
-  { id: 3, course_code: 'DIDS2110', course_name: 'Database Systems', faculty: 'FICT', program: 'Information Technology' }
+const mockReports = [
+  {
+    id: 1,
+    class_name: 'IT Year 1',
+    course_name: 'Web Application Development',
+    course_code: 'DIWA2110',
+    lecturer_name: 'John Doe',
+    date_of_lecture: '2025-10-12',
+    students_present: 48,
+    total_students: 50,
+    topic_taught: 'Intro to React',
+    status: 'approved'
+  }
 ];
 
 // ======================================================
-// 🌐 BASIC ROUTES
+// 🌐 ROUTES
 // ======================================================
 app.get('/', (req, res) => {
   res.json({
     message: '🚀 LUCT Reporting System Backend is RUNNING!',
-    timestamp: new Date().toISOString(),
     status: 'ACTIVE',
-    port: PORT,
-    database: process.env.DB_NAME || 'Render Cloud DB',
-    frontend_url: 'https://luct-reporting-system.vercel.app',
-    environment: process.env.NODE_ENV || 'production'
+    environment: process.env.NODE_ENV || 'production',
+    backend: 'Render',
+    api_base: `https://luct-reporting-system-1-9jwp.onrender.com`
   });
 });
 
-// Health check
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT NOW()');
-    res.json({
-      status: 'OK',
-      database: 'Connected',
-      timestamp: new Date().toISOString(),
-      server: 'LUCT Reporting System Backend',
-      port: PORT
-    });
+    res.json({ status: 'OK', database: 'Connected', time: new Date().toISOString() });
   } catch (error) {
-    res.status(500).json({
-      status: 'ERROR',
-      database: 'Disconnected',
-      error: error.message
-    });
+    res.status(500).json({ status: 'ERROR', error: error.message });
   }
 });
 
-// ======================================================
-// 🧾 AUTH ROUTES
-// ======================================================
+// LOGIN
 app.post('/api/auth/login', (req, res) => {
   const { email } = req.body;
   const user = mockUsers.find(u => u.email === email) || mockUsers[0];
@@ -143,44 +128,35 @@ app.post('/api/auth/login', (req, res) => {
   res.json({ message: 'Login successful', token, user });
 });
 
-// ======================================================
-// 📊 REPORTS ROUTES (mock)
-// ======================================================
+// REPORTS (ensure arrays)
 app.get('/api/reports/all', (req, res) => {
-  res.json([
-    { id: 1, course: 'Web Dev', week: 'Week 6', lecturer: 'John Doe' }
-  ]);
+  res.json(Array.isArray(mockReports) ? mockReports : []);
 });
 
-// ======================================================
-// 📈 MONITORING ROUTES
-// ======================================================
+app.get('/api/reports/my-reports', (req, res) => {
+  res.json(Array.isArray(mockReports) ? mockReports.filter(r => r.lecturer_name === 'John Doe') : []);
+});
+
+// COURSES
+app.get('/api/courses', (req, res) => {
+  res.json(Array.isArray(mockCourses) ? mockCourses : []);
+});
+
+// MONITORING
 app.get('/api/monitoring', (req, res) => {
-  res.json({
-    total_reports: 12,
-    pending_reports: 3,
-    approved_reports: 9,
-    average_attendance: 82,
-    complaints: 4,
-  });
+  res.json({ total_reports: 12, pending_reports: 3, approved_reports: 9, average_attendance: 82, complaints: 4 });
 });
 
-// ======================================================
-// ⚙️ ERROR HANDLING
-// ======================================================
+// ERROR HANDLER
 app.use((err, req, res, next) => {
-  console.error('Server Error:', err);
+  console.error('Server Error:', err.message);
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// ======================================================
-// 🧩 SERVE FRONTEND (for Render combined build)
-// ======================================================
+// FRONTEND (production)
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-  });
+  app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../frontend/build', 'index.html')));
 }
 
 // ======================================================
@@ -188,13 +164,7 @@ if (process.env.NODE_ENV === 'production') {
 // ======================================================
 app.listen(PORT, () => {
   console.log('='.repeat(70));
-  console.log('🚀 LUCT REPORTING SYSTEM BACKEND - LIVE');
-  console.log('='.repeat(70));
-  console.log(`📍 Port: ${PORT}`);
-  console.log(`🌐 URL: http://localhost:${PORT}`);
-  console.log(`📊 Database: ${process.env.DB_NAME || 'Render Cloud DB'}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'production'}`);
-  console.log('='.repeat(70));
-  console.log('💡 Health check: https://luct-reporting-system-1-9jwp.onrender.com/api/health');
+  console.log('🚀 Backend Live on Render');
+  console.log(`🌐 URL: https://luct-reporting-system-1-9jwp.onrender.com`);
   console.log('='.repeat(70));
 });
