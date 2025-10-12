@@ -73,42 +73,8 @@ app.use(
 app.use(express.json());
 
 // ======================================================
-// 🧩 MOCK DATA
+// 🌐 BASIC ROUTES
 // ======================================================
-const mockUsers = [
-  { id: 1, name: 'Test Student', email: 'student@luct.ac.ls', role: 'student', faculty: 'FICT', program: 'Information Technology', class_id: 1 },
-  { id: 2, name: 'Test Lecturer', email: 'lecturer@luct.ac.ls', role: 'lecturer', faculty: 'FICT', program: 'Information Technology' },
-  { id: 3, name: 'PRL FICT', email: 'prl@fict.luct.ac.ls', role: 'prl', faculty: 'FICT', program: 'Information Technology' },
-  { id: 4, name: 'PL Admin', email: 'pl@luct.ac.ls', role: 'pl', faculty: 'FICT', program: 'Information Technology' },
-  { id: 5, name: 'FMG Director', email: 'fmg@luct.ac.ls', role: 'fmg', faculty: 'FICT', program: 'Information Technology' }
-];
-
-const mockCourses = [
-  { id: 1, course_code: 'DIWA2110', course_name: 'Web Application Development', faculty: 'FICT', program: 'IT', assigned_lecturer_id: 2 },
-  { id: 2, course_code: 'DIPR2110', course_name: 'Programming Fundamentals', faculty: 'FICT', program: 'IT' },
-  { id: 3, course_code: 'DIDS2110', course_name: 'Database Systems', faculty: 'FICT', program: 'IT' }
-];
-
-const mockReports = [
-  {
-    id: 1,
-    class_name: 'IT Year 1',
-    course_name: 'Web Application Development',
-    course_code: 'DIWA2110',
-    lecturer_name: 'John Doe',
-    date_of_lecture: '2025-10-12',
-    students_present: 48,
-    total_students: 50,
-    topic_taught: 'Intro to React',
-    status: 'approved'
-  }
-];
-
-// ======================================================
-// 🌐 ROUTES
-// ======================================================
-
-// Root route
 app.get('/', (req, res) => {
   res.json({
     message: '🚀 LUCT Reporting System Backend is RUNNING!',
@@ -119,7 +85,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT NOW()');
@@ -129,7 +94,17 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Login
+// ======================================================
+// 🧾 AUTH
+// ======================================================
+const mockUsers = [
+  { id: 1, name: 'Test Student', email: 'student@luct.ac.ls', role: 'student', faculty: 'FICT', program: 'Information Technology', class_id: 1 },
+  { id: 2, name: 'Test Lecturer', email: 'lecturer@luct.ac.ls', role: 'lecturer', faculty: 'FICT', program: 'Information Technology' },
+  { id: 3, name: 'PRL FICT', email: 'prl@fict.luct.ac.ls', role: 'prl', faculty: 'FICT', program: 'Information Technology' },
+  { id: 4, name: 'PL Admin', email: 'pl@luct.ac.ls', role: 'pl', faculty: 'FICT', program: 'Information Technology' },
+  { id: 5, name: 'FMG Director', email: 'fmg@luct.ac.ls', role: 'fmg', faculty: 'FICT', program: 'Information Technology' }
+];
+
 app.post('/api/auth/login', (req, res) => {
   const { email } = req.body;
   const user = mockUsers.find(u => u.email === email) || mockUsers[0];
@@ -137,32 +112,116 @@ app.post('/api/auth/login', (req, res) => {
   res.json({ message: 'Login successful', token, user });
 });
 
-// Reports
-app.get('/api/reports/all', (req, res) => {
-  res.json(Array.isArray(mockReports) ? mockReports : []);
-});
-
-app.get('/api/reports/my-reports', (req, res) => {
-  res.json(Array.isArray(mockReports) ? mockReports.filter(r => r.lecturer_name === 'John Doe') : []);
-});
-
-// Courses
-app.get('/api/courses', (req, res) => {
-  res.json(Array.isArray(mockCourses) ? mockCourses : []);
-});
-
-// Complaints
-app.get('/api/complaints', async (req, res) => {
+// ======================================================
+// 📊 REPORTS
+// ======================================================
+app.get('/api/reports/all', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
-    res.json(Array.isArray(result.rows) ? result.rows : []);
+    const result = await pool.query('SELECT * FROM reports ORDER BY id DESC');
+    res.json(result.rows);
   } catch (err) {
-    console.error('❌ Error fetching complaints:', err.message);
-    res.json([]); // Always return an array
+    console.error('❌ Error fetching reports:', err.message);
+    res.json([]);
   }
 });
 
-// Monitoring
+app.get('/api/reports/my-reports', async (req, res) => {
+  try {
+    const lecturer = 'John Doe';
+    const result = await pool.query('SELECT * FROM reports WHERE lecturer_name = $1 ORDER BY id DESC', [lecturer]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Error fetching my reports:', err.message);
+    res.json([]);
+  }
+});
+
+// ✏️ Create a new report
+app.post('/api/reports', async (req, res) => {
+  try {
+    const {
+      class_name,
+      course_name,
+      course_code,
+      lecturer_name,
+      date_of_lecture,
+      students_present,
+      total_students,
+      topic_taught,
+      learning_outcomes,
+      recommendations
+    } = req.body;
+
+    const query = `
+      INSERT INTO reports 
+      (class_name, course_name, course_code, lecturer_name, date_of_lecture, 
+       students_present, total_students, topic_taught, learning_outcomes, recommendations, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending')
+      RETURNING *;
+    `;
+    const values = [
+      class_name, course_name, course_code, lecturer_name,
+      date_of_lecture, students_present, total_students,
+      topic_taught, learning_outcomes, recommendations
+    ];
+
+    const result = await pool.query(query, values);
+    res.status(201).json({ message: '✅ Report created successfully!', report: result.rows[0] });
+  } catch (error) {
+    console.error('❌ Error creating report:', error);
+    res.status(500).json({ error: 'Failed to create report' });
+  }
+});
+
+// ======================================================
+// 💬 COMPLAINTS
+// ======================================================
+app.get('/api/complaints', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Error fetching complaints:', err.message);
+    res.json([]);
+  }
+});
+
+// Create new complaint
+app.post('/api/complaints', async (req, res) => {
+  try {
+    const { user_id, description } = req.body;
+    const result = await pool.query(
+      `INSERT INTO complaints (user_id, description, created_at) VALUES ($1, $2, NOW()) RETURNING *`,
+      [user_id, description]
+    );
+    res.status(201).json({ message: '✅ Complaint submitted', complaint: result.rows[0] });
+  } catch (err) {
+    console.error('❌ Error creating complaint:', err.message);
+    res.status(500).json({ error: 'Failed to create complaint' });
+  }
+});
+
+// ======================================================
+// ⭐ RATING
+// ======================================================
+app.post('/api/rating', async (req, res) => {
+  try {
+    const { report_id, lecturer_id, score, feedback } = req.body;
+    const result = await pool.query(
+      `INSERT INTO rating (report_id, lecturer_id, score, feedback, created_at)
+       VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
+      [report_id, lecturer_id, score, feedback]
+    );
+    res.status(201).json({ message: '✅ Rating submitted successfully!', rating: result.rows[0] });
+  } catch (err) {
+    console.error('❌ Error creating rating:', err.message);
+    res.status(500).json({ error: 'Failed to create rating' });
+  }
+});
+
+// ======================================================
+// 📈 MONITORING
+// ======================================================
 app.get('/api/monitoring', async (req, res) => {
   try {
     const reports = await pool.query('SELECT * FROM reports');
@@ -208,7 +267,7 @@ app.use((err, req, res, next) => {
 });
 
 // ======================================================
-// 🧩 SERVE FRONTEND (for production build)
+// 🧩 FRONTEND SERVE (Render Production)
 // ======================================================
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
