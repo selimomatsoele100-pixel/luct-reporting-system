@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 1000;
+const PORT = process.env.PORT || 10000;
 
 // ======================================================
 // 🧠 DATABASE CONFIGURATION
@@ -18,7 +18,7 @@ if (process.env.DATABASE_URL) {
   console.log("🌐 Using DATABASE_URL for connection");
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }, // Required for Render / Cloud Postgres
+    ssl: { rejectUnauthorized: false },
   });
 } else {
   console.log("💻 Using local PostgreSQL configuration");
@@ -52,17 +52,17 @@ pool.on('error', (err) => {
 const allowedOrigins = [
   'http://localhost:3000',
   'https://animated-jelly-6d2f4d.netlify.app',
-  'https://luct-reporting-system-lac.vercel.app',
-  'https://luct-reporting-system.vercel.app'
+  'https://luct-reporting-system.vercel.app',
+  'https://luct-reporting-system-lac.vercel.app'
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow Postman, curl, etc.
+      if (!origin) return callback(null, true);
 
-      // ✅ Allow Vercel subdomains automatically
-      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      // ✅ Allow Vercel, Netlify, and local
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.netlify.app')) {
         callback(null, true);
       } else {
         console.warn(`🚫 Blocked CORS request from: ${origin}`);
@@ -108,12 +108,12 @@ app.get('/', (req, res) => {
     status: 'ACTIVE',
     port: PORT,
     database: process.env.DB_NAME || 'Render Cloud DB',
-    frontend_url: 'http://localhost:3000',
-    environment: process.env.NODE_ENV || 'development'
+    frontend_url: 'https://luct-reporting-system.vercel.app',
+    environment: process.env.NODE_ENV || 'production'
   });
 });
 
-// Database health check
+// Health check
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT NOW()');
@@ -147,7 +147,9 @@ app.post('/api/auth/login', (req, res) => {
 // 📊 REPORTS ROUTES (mock)
 // ======================================================
 app.get('/api/reports/all', (req, res) => {
-  res.json([{ id: 1, course: 'Web Dev', week: 'Week 6', lecturer: 'John Doe' }]);
+  res.json([
+    { id: 1, course: 'Web Dev', week: 'Week 6', lecturer: 'John Doe' }
+  ]);
 });
 
 // ======================================================
@@ -172,7 +174,7 @@ app.use((err, req, res, next) => {
 });
 
 // ======================================================
-// 🧩 SERVE FRONTEND (production)
+// 🧩 SERVE FRONTEND (for Render combined build)
 // ======================================================
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
@@ -186,13 +188,13 @@ if (process.env.NODE_ENV === 'production') {
 // ======================================================
 app.listen(PORT, () => {
   console.log('='.repeat(70));
-  console.log('🚀 LUCT REPORTING SYSTEM BACKEND - COMPLETE VERSION');
+  console.log('🚀 LUCT REPORTING SYSTEM BACKEND - LIVE');
   console.log('='.repeat(70));
   console.log(`📍 Port: ${PORT}`);
   console.log(`🌐 URL: http://localhost:${PORT}`);
   console.log(`📊 Database: ${process.env.DB_NAME || 'Render Cloud DB'}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'production'}`);
   console.log('='.repeat(70));
-  console.log('💡 Test backend API: http://localhost:' + PORT + '/api/health');
+  console.log('💡 Health check: https://luct-reporting-system-1-9jwp.onrender.com/api/health');
   console.log('='.repeat(70));
 });
