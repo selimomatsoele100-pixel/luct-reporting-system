@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT; // ✅ Render dynamically assigns this
+const PORT = process.env.PORT || 10000;
 
 // ======================================================
 // 🧠 DATABASE CONFIGURATION
@@ -34,7 +34,6 @@ if (process.env.DATABASE_URL) {
 pool.connect()
   .then(client => {
     console.log('✅ Connected to PostgreSQL database successfully');
-    console.log(`📊 Database: ${process.env.DB_NAME || 'Render Cloud DB'}`);
     client.release();
   })
   .catch(err => console.error('❌ DB connection failed:', err.message));
@@ -42,7 +41,7 @@ pool.connect()
 pool.on('error', (err) => console.error('⚠️ Unexpected DB error:', err));
 
 // ======================================================
-// 🧱 MIDDLEWARE (CORS + JSON)
+// 🧱 MIDDLEWARE
 // ======================================================
 const allowedOrigins = [
   'http://localhost:3000',
@@ -54,7 +53,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // Allow Postman, curl, etc.
+      if (!origin) return callback(null, true);
       if (
         allowedOrigins.includes(origin) ||
         origin.endsWith('.vercel.app') ||
@@ -73,18 +72,10 @@ app.use(
 app.use(express.json());
 
 // ======================================================
-// 🌐 BASIC ROUTES
+// 🌐 ROUTES
 // ======================================================
-app.get('/', (req, res) => {
-  res.json({
-    message: '🚀 LUCT Reporting System Backend is RUNNING!',
-    status: 'ACTIVE',
-    environment: process.env.NODE_ENV || 'production',
-    backend: 'Render',
-    api_base: `https://luct-reporting-system-1-9jwp.onrender.com`
-  });
-});
 
+// Health check
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT NOW()');
@@ -94,27 +85,71 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// ======================================================
-// 🧾 AUTH
-// ======================================================
-const mockUsers = [
-  { id: 1, name: 'Test Student', email: 'student@luct.ac.ls', role: 'student', faculty: 'FICT', program: 'Information Technology', class_id: 1 },
-  { id: 2, name: 'Test Lecturer', email: 'lecturer@luct.ac.ls', role: 'lecturer', faculty: 'FICT', program: 'Information Technology' },
-  { id: 3, name: 'PRL FICT', email: 'prl@fict.luct.ac.ls', role: 'prl', faculty: 'FICT', program: 'Information Technology' },
-  { id: 4, name: 'PL Admin', email: 'pl@luct.ac.ls', role: 'pl', faculty: 'FICT', program: 'Information Technology' },
-  { id: 5, name: 'FMG Director', email: 'fmg@luct.ac.ls', role: 'fmg', faculty: 'FICT', program: 'Information Technology' }
-];
+// ✅ Create new report
+app.post('/api/reports', async (req, res) => {
+  try {
+    const {
+      faculty,
+      class_name,
+      week_of_reporting,
+      date_of_lecture,
+      course_name,
+      course_code,
+      students_present,
+      total_students,
+      venue,
+      scheduled_time,
+      topic_taught,
+      learning_outcomes,
+      recommendations,
+      lecturer_name,
+      status
+    } = req.body;
 
-app.post('/api/auth/login', (req, res) => {
-  const { email } = req.body;
-  const user = mockUsers.find(u => u.email === email) || mockUsers[0];
-  const token = 'mock-token-' + Date.now();
-  res.json({ message: 'Login successful', token, user });
+    if (!course_code || !course_name || !class_name) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const insertQuery = `
+      INSERT INTO reports (
+        faculty, class_name, week_of_reporting, date_of_lecture,
+        course_name, course_code, students_present, total_students,
+        venue, scheduled_time, topic_taught, learning_outcomes,
+        recommendations, lecturer_name, status
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      RETURNING *;
+    `;
+
+    const values = [
+      faculty,
+      class_name,
+      week_of_reporting,
+      date_of_lecture,
+      course_name,
+      course_code,
+      students_present,
+      total_students,
+      venue,
+      scheduled_time,
+      topic_taught,
+      learning_outcomes,
+      recommendations,
+      lecturer_name,
+      status || 'pending'
+    ];
+
+    const result = await pool.query(insertQuery, values);
+
+    console.log('📝 New Report Created:', result.rows[0]);
+    res.status(201).json({ message: 'Report created successfully', report: result.rows[0] });
+  } catch (err) {
+    console.error('❌ Error inserting report:', err.message);
+    res.status(500).json({ error: 'Failed to insert report' });
+  }
 });
 
-// ======================================================
-// 📊 REPORTS
-// ======================================================
+// ✅ Fetch all reports
 app.get('/api/reports/all', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM reports ORDER BY id DESC');
@@ -125,10 +160,14 @@ app.get('/api/reports/all', async (req, res) => {
   }
 });
 
+// ✅ Fetch lecturer-specific reports
 app.get('/api/reports/my-reports', async (req, res) => {
   try {
-    const lecturer = 'John Doe';
-    const result = await pool.query('SELECT * FROM reports WHERE lecturer_name = $1 ORDER BY id DESC', [lecturer]);
+    const lecturer = req.query.lecturer || 'John Doe';
+    const result = await pool.query(
+      'SELECT * FROM reports WHERE lecturer_name = $1 ORDER BY id DESC',
+      [lecturer]
+    );
     res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching my reports:', err.message);
@@ -136,92 +175,53 @@ app.get('/api/reports/my-reports', async (req, res) => {
   }
 });
 
-// ✏️ Create a new report
-app.post('/api/reports', async (req, res) => {
-  try {
-    const {
-      class_name,
-      course_name,
-      course_code,
-      lecturer_name,
-      date_of_lecture,
-      students_present,
-      total_students,
-      topic_taught,
-      learning_outcomes,
-      recommendations
-    } = req.body;
-
-    const query = `
-      INSERT INTO reports 
-      (class_name, course_name, course_code, lecturer_name, date_of_lecture, 
-       students_present, total_students, topic_taught, learning_outcomes, recommendations, status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending')
-      RETURNING *;
-    `;
-    const values = [
-      class_name, course_name, course_code, lecturer_name,
-      date_of_lecture, students_present, total_students,
-      topic_taught, learning_outcomes, recommendations
-    ];
-
-    const result = await pool.query(query, values);
-    res.status(201).json({ message: '✅ Report created successfully!', report: result.rows[0] });
-  } catch (error) {
-    console.error('❌ Error creating report:', error);
-    res.status(500).json({ error: 'Failed to create report' });
-  }
-});
-
-// ======================================================
-// 💬 COMPLAINTS
-// ======================================================
-app.get('/api/complaints', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error('❌ Error fetching complaints:', err.message);
-    res.json([]);
-  }
-});
-
-// Create new complaint
+// ✅ Submit complaint
 app.post('/api/complaints', async (req, res) => {
   try {
-    const { user_id, description } = req.body;
+    const { user_id, complaint_text, category } = req.body;
+
+    if (!complaint_text) {
+      return res.status(400).json({ error: 'Complaint text is required' });
+    }
+
     const result = await pool.query(
-      `INSERT INTO complaints (user_id, description, created_at) VALUES ($1, $2, NOW()) RETURNING *`,
-      [user_id, description]
+      `INSERT INTO complaints (user_id, complaint_text, category, created_at)
+       VALUES ($1, $2, $3, NOW())
+       RETURNING *`,
+      [user_id || null, complaint_text, category || 'general']
     );
-    res.status(201).json({ message: '✅ Complaint submitted', complaint: result.rows[0] });
+
+    res.status(201).json({ message: 'Complaint submitted', complaint: result.rows[0] });
   } catch (err) {
-    console.error('❌ Error creating complaint:', err.message);
-    res.status(500).json({ error: 'Failed to create complaint' });
+    console.error('❌ Error inserting complaint:', err.message);
+    res.status(500).json({ error: 'Failed to submit complaint' });
   }
 });
 
-// ======================================================
-// ⭐ RATING
-// ======================================================
+// ✅ Submit rating
 app.post('/api/rating', async (req, res) => {
   try {
     const { report_id, lecturer_id, score, feedback } = req.body;
+
+    if (!report_id || !score) {
+      return res.status(400).json({ error: 'Missing required rating data' });
+    }
+
     const result = await pool.query(
       `INSERT INTO rating (report_id, lecturer_id, score, feedback, created_at)
-       VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-      [report_id, lecturer_id, score, feedback]
+       VALUES ($1, $2, $3, $4, NOW())
+       RETURNING *`,
+      [report_id, lecturer_id || null, score, feedback || '']
     );
-    res.status(201).json({ message: '✅ Rating submitted successfully!', rating: result.rows[0] });
+
+    res.status(201).json({ message: 'Rating submitted', rating: result.rows[0] });
   } catch (err) {
-    console.error('❌ Error creating rating:', err.message);
-    res.status(500).json({ error: 'Failed to create rating' });
+    console.error('❌ Error inserting rating:', err.message);
+    res.status(500).json({ error: 'Failed to submit rating' });
   }
 });
 
-// ======================================================
-// 📈 MONITORING
-// ======================================================
+// ✅ Monitoring stats
 app.get('/api/monitoring', async (req, res) => {
   try {
     const reports = await pool.query('SELECT * FROM reports');
@@ -259,19 +259,13 @@ app.get('/api/monitoring', async (req, res) => {
 });
 
 // ======================================================
-// ⚙️ ERROR HANDLER
-// ======================================================
-app.use((err, req, res, next) => {
-  console.error('Server Error:', err.message);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// ======================================================
-// 🧩 FRONTEND SERVE (Render Production)
+// 🧩 SERVE FRONTEND (production)
 // ======================================================
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
-  app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../frontend/build', 'index.html')));
+  app.get('*', (req, res) =>
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'))
+  );
 }
 
 // ======================================================
