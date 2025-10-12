@@ -37,17 +37,22 @@ const Reports = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       let response;
       if (user?.role === 'lecturer') {
         response = await api.get('/reports/my-reports');
       } else {
         response = await api.get('/reports/all');
       }
-      
-      setReports(response.data || []);
+
+      const data =
+        Array.isArray(response.data) ? response.data :
+        Array.isArray(response.data?.reports) ? response.data.reports :
+        [];
+
+      setReports(data);
     } catch (error) {
-      console.error('Error fetching reports:', error);
+      console.error('❌ Error fetching reports:', error);
       setError('Failed to load reports');
       setReports([]);
     } finally {
@@ -58,14 +63,20 @@ const Reports = () => {
   const fetchCourses = async () => {
     try {
       const response = await api.get('/courses');
-      setCourses(response.data || []);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setCourses(data);
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      console.error('❌ Error fetching courses:', error);
+      setCourses([]);
     }
   };
 
   const handleExportExcel = () => {
-    exportReportsToExcel(reports);
+    if (Array.isArray(reports) && reports.length > 0) {
+      exportReportsToExcel(reports);
+    } else {
+      alert('No reports available to export.');
+    }
   };
 
   const handleFormChange = (e) => {
@@ -100,9 +111,12 @@ const Reports = () => {
       };
 
       const response = await api.post('/reports', reportData);
-      
-      setReports(prev => [response.data.report, ...prev]);
-      
+      const newReport = response.data?.report || null;
+
+      if (newReport) {
+        setReports(prev => [newReport, ...prev]);
+      }
+
       setFormData({
         faculty: '',
         class_name: '',
@@ -118,10 +132,10 @@ const Reports = () => {
         learning_outcomes: '',
         recommendations: ''
       });
-      
+
       setShowReportForm(false);
     } catch (error) {
-      console.error('Error submitting report:', error);
+      console.error('❌ Error submitting report:', error);
       setError('Failed to submit report');
     } finally {
       setSubmitting(false);
@@ -133,7 +147,8 @@ const Reports = () => {
     return `${Math.round((report.students_present / report.total_students) * 100)}%`;
   };
 
-  const canCreateReports = user?.role === 'lecturer' || user?.role === 'prl' || user?.role === 'pl' || user?.role === 'fmg';
+  const canCreateReports =
+    user?.role === 'lecturer' || user?.role === 'prl' || user?.role === 'pl' || user?.role === 'fmg';
 
   if (loading) {
     return (
@@ -150,23 +165,17 @@ const Reports = () => {
     <div>
       <Navigation />
       <div className="container">
+        {/* Report Form */}
         {canCreateReports && showReportForm && (
           <div className="card" style={{ marginBottom: '30px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2>Create New Report</h2>
-              <button 
-                onClick={() => setShowReportForm(false)} 
-                className="btn btn-secondary"
-              >
+              <button onClick={() => setShowReportForm(false)} className="btn btn-secondary">
                 Cancel
               </button>
             </div>
 
-            {error && (
-              <div className="alert alert-error">
-                {error}
-              </div>
-            )}
+            {error && <div className="alert alert-error">{error}</div>}
 
             <form onSubmit={handleSubmitReport}>
               <div className="form-row">
@@ -179,11 +188,12 @@ const Reports = () => {
                     required
                   >
                     <option value="">Select Course</option>
-                    {courses.map(course => (
-                      <option key={course.id} value={course.course_code}>
-                        {course.course_code} - {course.course_name}
-                      </option>
-                    ))}
+                    {Array.isArray(courses) &&
+                      courses.map(course => (
+                        <option key={course.id} value={course.course_code}>
+                          {course.course_code} - {course.course_name}
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div className="form-group">
@@ -325,11 +335,7 @@ const Reports = () => {
               </div>
 
               <div className="form-actions">
-                <button 
-                  type="submit" 
-                  className="btn btn-primary"
-                  disabled={submitting}
-                >
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Submitting...' : 'Create Report'}
                 </button>
               </div>
@@ -337,6 +343,7 @@ const Reports = () => {
           </div>
         )}
 
+        {/* Reports Table */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
@@ -347,14 +354,11 @@ const Reports = () => {
             </div>
             <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
               {canCreateReports && !showReportForm && (
-                <button 
-                  onClick={() => setShowReportForm(true)} 
-                  className="btn btn-primary"
-                >
+                <button onClick={() => setShowReportForm(true)} className="btn btn-primary">
                   Create Report
                 </button>
               )}
-              {reports.length > 0 && (
+              {Array.isArray(reports) && reports.length > 0 && (
                 <button onClick={handleExportExcel} className="btn btn-success">
                   Export to Excel
                 </button>
@@ -362,11 +366,7 @@ const Reports = () => {
             </div>
           </div>
 
-          {error && !showReportForm && (
-            <div className="alert alert-error">
-              {error}
-            </div>
-          )}
+          {error && !showReportForm && <div className="alert alert-error">{error}</div>}
 
           <div className="table">
             <table>
@@ -382,72 +382,68 @@ const Reports = () => {
                 </tr>
               </thead>
               <tbody>
-                {reports.map((report) => (
-                  <tr key={report.id}>
-                    <td>
-                      <div>{report.course_name}</div>
-                      <small style={{ color: '#94a3b8' }}>{report.course_code}</small>
-                    </td>
-                    <td>{report.class_name}</td>
-                    <td>{report.lecturer_name}</td>
-                    <td>{report.date_of_lecture ? new Date(report.date_of_lecture).toLocaleDateString() : 'N/A'}</td>
-                    <td>
-                      <div className="attendance-rate">
-                        <span className="rate">
-                          {getAttendanceRate(report)}
+                {Array.isArray(reports) && reports.length > 0 ? (
+                  reports.map((report) => (
+                    <tr key={report.id}>
+                      <td>
+                        <div>{report.course_name}</div>
+                        <small style={{ color: '#94a3b8' }}>{report.course_code}</small>
+                      </td>
+                      <td>{report.class_name}</td>
+                      <td>{report.lecturer_name}</td>
+                      <td>
+                        {report.date_of_lecture
+                          ? new Date(report.date_of_lecture).toLocaleDateString()
+                          : 'N/A'}
+                      </td>
+                      <td>
+                        <div className="attendance-rate">
+                          <span className="rate">{getAttendanceRate(report)}</span>
+                          <small>
+                            ({report.students_present}/{report.total_students})
+                          </small>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`status-badge status-${report.status}`}>
+                          {report.status}
                         </span>
-                        <small>
-                          ({report.students_present}/{report.total_students})
-                        </small>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`status-badge status-${report.status}`}>
-                        {report.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => {
-                          const details = `
-                            Course: ${report.course_name}
-                            Class: ${report.class_name}
-                            Lecturer: ${report.lecturer_name}
-                            Date: ${report.date_of_lecture ? new Date(report.date_of_lecture).toLocaleDateString() : 'N/A'}
-                            Topic: ${report.topic_taught}
-                            Attendance: ${getAttendanceRate(report)}
-                            Learning Outcomes: ${report.learning_outcomes}
-                            ${report.recommendations ? `Recommendations: ${report.recommendations}` : ''}
-                          `;
-                          alert(`Report Details:\n\n${details}`);
-                        }}
-                      >
-                        View
-                      </button>
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            const details = `
+Course: ${report.course_name}
+Class: ${report.class_name}
+Lecturer: ${report.lecturer_name}
+Date: ${
+                              report.date_of_lecture
+                                ? new Date(report.date_of_lecture).toLocaleDateString()
+                                : 'N/A'
+                            }
+Topic: ${report.topic_taught}
+Attendance: ${getAttendanceRate(report)}
+Learning Outcomes: ${report.learning_outcomes}
+${report.recommendations ? `Recommendations: ${report.recommendations}` : ''}
+`;
+                            alert(`Report Details:\n\n${details}`);
+                          }}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center' }}>
+                      No reports available.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
-            {reports.length === 0 && !error && (
-              <div className="no-data">
-                {canCreateReports ? (
-                  <div style={{ textAlign: 'center' }}>
-                    <p>No reports found.</p>
-                    <button 
-                      onClick={() => setShowReportForm(true)} 
-                      className="btn btn-primary"
-                      style={{ marginTop: '10px' }}
-                    >
-                      Create Your First Report
-                    </button>
-                  </div>
-                ) : (
-                  <p>No reports available.</p>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
