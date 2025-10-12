@@ -4,10 +4,13 @@
   "description": "LUCT Reporting System Frontend",
   "main": "index.js",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+  "start": "react-scripts start",
+  "build": "react-scripts build",
+  "test": "react-scripts test",
+  "eject": "react-scripts eject",
+  "postinstall": "chmod +x node_modules/.bin/react-scripts || echo 'Skip chmod on Windows'"
+
+
   },
   "dependencies": {
     "axios": "^1.5.0",
