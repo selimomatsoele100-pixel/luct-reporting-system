@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 8080; // Render dynamically assigns this
+const PORT = process.env.PORT || 8080;
 
 // ======================================================
 // 🧠 DATABASE CONFIGURATION
@@ -71,7 +71,7 @@ app.use(express.json());
 // 🌐 ROUTES
 // ======================================================
 
-// Health check
+// ✅ Health check
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT NOW()');
@@ -81,7 +81,7 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Reports — CREATE
+// ✅ Create report
 app.post('/api/reports', async (req, res) => {
   try {
     const {
@@ -119,7 +119,7 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
-// Reports — FETCH
+// ✅ Fetch all reports
 app.get('/api/reports/all', async (_, res) => {
   try {
     const result = await pool.query('SELECT * FROM reports ORDER BY id DESC');
@@ -130,41 +130,100 @@ app.get('/api/reports/all', async (_, res) => {
   }
 });
 
-// Complaints
+// ✅ Complaints CRUD
 app.get('/api/complaints', async (_, res) => {
   try {
     const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
-    res.json(result.rows);
+    res.json(Array.isArray(result.rows) ? result.rows : []);
   } catch (err) {
     console.error('❌ Error fetching complaints:', err.message);
     res.json([]);
   }
 });
 
-// Monitoring
+app.post('/api/complaints', async (req, res) => {
+  try {
+    const { complaint_text, complaint_against_id } = req.body;
+    if (!complaint_text || !complaint_against_id) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const query = `
+      INSERT INTO complaints (complaint_text, complaint_against_id, status)
+      VALUES ($1, $2, 'pending')
+      RETURNING *;
+    `;
+    const result = await pool.query(query, [complaint_text, complaint_against_id]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('❌ Error creating complaint:', err.message);
+    res.status(500).json({ error: 'Failed to create complaint' });
+  }
+});
+
+app.patch('/api/complaints/:id/respond', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { response_text } = req.body;
+    const result = await pool.query(
+      `UPDATE complaints SET response_text = $1, status = 'reviewed' WHERE id = $2 RETURNING *`,
+      [response_text, id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('❌ Error responding to complaint:', err.message);
+    res.status(500).json({ error: 'Failed to respond' });
+  }
+});
+
+// ✅ Monitoring data (full dataset for table view)
+app.get('/api/monitoring/data', async (_, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM reports ORDER BY id DESC');
+    res.json(Array.isArray(result.rows) ? result.rows : []);
+  } catch (err) {
+    console.error('❌ Error fetching monitoring data:', err.message);
+    res.json([]);
+  }
+});
+
+// ✅ Monitoring summary stats
 app.get('/api/monitoring', async (_, res) => {
   try {
     const reports = await pool.query('SELECT * FROM reports');
     const complaints = await pool.query('SELECT * FROM complaints');
     const ratings = await pool.query('SELECT * FROM rating');
 
-    const total_reports = reports.rowCount;
+    const total_reports = reports.rowCount || 0;
     const pending_reports = reports.rows.filter(r => r.status === 'pending').length;
     const approved_reports = reports.rows.filter(r => r.status === 'approved').length;
-    const complaints_count = complaints.rowCount;
+    const complaints_count = complaints.rowCount || 0;
+
     const avg_rating = ratings.rowCount
       ? Math.round(ratings.rows.reduce((sum, r) => sum + (r.score || 0), 0) / ratings.rowCount)
       : 0;
 
-    res.json({ total_reports, pending_reports, approved_reports, complaints: complaints_count, average_rating: avg_rating });
+    res.json({
+      total_reports,
+      pending_reports,
+      approved_reports,
+      complaints: complaints_count,
+      average_rating: avg_rating,
+    });
   } catch (err) {
     console.error('❌ Monitoring fetch failed:', err.message);
-    res.json({ total_reports: 0, pending_reports: 0, approved_reports: 0, complaints: 0, average_rating: 0 });
+    res.json({
+      total_reports: 0,
+      pending_reports: 0,
+      approved_reports: 0,
+      complaints: 0,
+      average_rating: 0,
+    });
   }
 });
 
 // ======================================================
-// 🧩 SERVE FRONTEND (for production)
+// 🧩 SERVE FRONTEND (Production)
 // ======================================================
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));

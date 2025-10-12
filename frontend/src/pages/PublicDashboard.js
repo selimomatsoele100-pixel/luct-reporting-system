@@ -1,18 +1,22 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import PublicHeader from '../components/PublicHeader';
+import React from "react";
+import { Link } from "react-router-dom";
+import PublicHeader from "../components/PublicHeader";
 
-const PublicDashboard = () => {
+const PublicDashboard = ({
+  title = "LUCT Reporting System",
+  description = "Streamline academic reporting, monitoring, and feedback across all faculties.",
+  features = [],
+  stats = [],
+}) => {
   return (
     <div className="public-dashboard">
       <PublicHeader />
+
       <div className="container">
+        {/* Hero Section */}
         <div className="public-hero">
-          <h1>LUCT Reporting System</h1>
-          <p>
-            Streamline academic reporting, monitoring, and feedback across all faculties. 
-            A comprehensive platform for lecturers, students, and faculty management.
-          </p>
+          <h1>{title}</h1>
+          <p>{description}</p>
           <div className="auth-buttons">
             <Link to="/login" className="btn btn-primary">
               Get Started
@@ -23,87 +27,68 @@ const PublicDashboard = () => {
           </div>
         </div>
 
+        {/* Features Grid */}
         <div className="features-grid">
-          <div className="feature-card">
-            <h3>Academic Reporting</h3>
-            <p>
-              Lecturers can easily create and submit detailed class reports including 
-              attendance, topics covered, and learning outcomes with automated tracking.
+          {features && features.length > 0 ? (
+            features.map((feature, index) => (
+              <div key={index} className="feature-card">
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-muted" style={{ textAlign: "center" }}>
+              No features available. Please check back later.
             </p>
-          </div>
-
-          <div className="feature-card">
-            <h3>Faculty Monitoring</h3>
-            <p>
-              Principal Lecturers and Program Leaders can monitor class activities, 
-              attendance rates, and academic performance across all courses.
-            </p>
-          </div>
-
-          <div className="feature-card">
-            <h3>Rating & Feedback</h3>
-            <p>
-              Students can provide valuable feedback and ratings for courses and lecturers, 
-              helping improve teaching quality and learning experience.
-            </p>
-          </div>
-
-          <div className="feature-card">
-            <h3>Real-time Tracking</h3>
-            <p>
-              Monitor class attendance, report submissions, and approval workflows in 
-              real-time with comprehensive analytics and reporting tools.
-            </p>
-          </div>
-
-          <div className="feature-card">
-            <h3>Complaint Management</h3>
-            <p>
-              Structured system for submitting and resolving academic complaints with 
-              proper escalation paths and transparent tracking.
-            </p>
-          </div>
-
-          <div className="feature-card">
-            <h3>Multi-Faculty Support</h3>
-            <p>
-              Supports FICT, FBMG, FABE faculties with role-based access control for 
-              students, lecturers, PRLs, PLs, and faculty management.
-            </p>
-          </div>
+          )}
         </div>
 
-        <div style={{ marginTop: '60px', textAlign: 'center' }}>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-number">500+</div>
-              <div className="stat-label">Active Users</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-number">1.2K+</div>
-              <div className="stat-label">Reports Monthly</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-number">95%</div>
-              <div className="stat-label">Satisfaction Rate</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-number">4.8/5</div>
-              <div className="stat-label">System Rating</div>
+        {/* Stats Section */}
+        {stats && stats.length > 0 && (
+          <div style={{ marginTop: "60px", textAlign: "center" }}>
+            <div className="stats-grid">
+              {stats.map((stat, index) => (
+                <div key={index} className="stat-card">
+                  <div className="stat-number">{stat.value}</div>
+                  <div className="stat-label">{stat.label}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
 
-        <div style={{ textAlign: 'center', marginTop: '60px', padding: '40px' }}>
-          <h2 style={{ color: '#f8fafc', marginBottom: '20px' }}>Ready to Get Started?</h2>
-          <p style={{ color: '#cbd5e1', marginBottom: '30px', maxWidth: '600px', margin: '0 auto' }}>
-            Join hundreds of faculty members and students already using the LUCT Reporting System 
-            to enhance academic transparency and efficiency.
+        {/* CTA Section */}
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "60px",
+            padding: "40px",
+          }}
+        >
+          <h2 style={{ color: "#f8fafc", marginBottom: "20px" }}>
+            Ready to Get Started?
+          </h2>
+          <p
+            style={{
+              color: "#cbd5e1",
+              marginBottom: "30px",
+              maxWidth: "600px",
+              margin: "0 auto",
+            }}
+          >
+            Join faculty members and students using the LUCT Reporting System to
+            enhance academic transparency and efficiency.
           </p>
         </div>
       </div>
     </div>
   );
+};
+
+// Default props (optional placeholders)
+PublicDashboard.defaultProps = {
+  features: [],
+  stats: [],
 };
 
 export default PublicDashboard;
