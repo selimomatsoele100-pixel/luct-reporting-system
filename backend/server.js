@@ -4,6 +4,7 @@ console.log("🧾 Loaded ENV:", process.env.DATABASE_URL ? "DATABASE_URL found �
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 const path = require('path');
 
 const app = express();
@@ -68,10 +69,8 @@ app.use(cors({
 app.use(express.json());
 
 // ======================================================
-// 🌐 ROUTES
+// 🌐 HEALTH CHECK
 // ======================================================
-
-// ✅ Health check
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT NOW()');
@@ -81,7 +80,70 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// ✅ Create report
+// ======================================================
+// 🔐 AUTH ROUTES
+// ======================================================
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, password, role, faculty } = req.body;
+
+    if (!name || !email || !password || !role || !faculty) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rowCount > 0) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const insertQuery = `
+      INSERT INTO users (name, email, password, role, faculty)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, name, email, role, faculty;
+    `;
+    const result = await pool.query(insertQuery, [name, email, hashedPassword, role, faculty]);
+
+    res.status(201).json({ message: 'User registered successfully', user: result.rows[0] });
+  } catch (error) {
+    console.error('❌ Registration failed:', error.message);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) return res.status(400).json({ error: 'Missing credentials' });
+
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) return res.status(401).json({ error: 'Invalid credentials' });
+
+    res.json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        faculty: user.faculty,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Login failed:', error.message);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// ======================================================
+// 📋 REPORTS ROUTES
+// ======================================================
 app.post('/api/reports', async (req, res) => {
   try {
     const {
@@ -103,7 +165,6 @@ app.post('/api/reports', async (req, res) => {
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING *;
     `;
-
     const values = [
       faculty, class_name, week_of_reporting, date_of_lecture,
       course_name, course_code, students_present, total_students,
@@ -119,7 +180,6 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
-// ✅ Fetch all reports
 app.get('/api/reports/all', async (_, res) => {
   try {
     const result = await pool.query('SELECT * FROM reports ORDER BY id DESC');
@@ -130,7 +190,9 @@ app.get('/api/reports/all', async (_, res) => {
   }
 });
 
-// ✅ Complaints CRUD
+// ======================================================
+// 🗣️ COMPLAINTS ROUTES
+// ======================================================
 app.get('/api/complaints', async (_, res) => {
   try {
     const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
@@ -176,7 +238,9 @@ app.patch('/api/complaints/:id/respond', async (req, res) => {
   }
 });
 
-// ✅ Monitoring data (full dataset for table view)
+// ======================================================
+// 📊 MONITORING ROUTES
+// ======================================================
 app.get('/api/monitoring/data', async (_, res) => {
   try {
     const result = await pool.query('SELECT * FROM reports ORDER BY id DESC');
@@ -187,7 +251,6 @@ app.get('/api/monitoring/data', async (_, res) => {
   }
 });
 
-// ✅ Monitoring summary stats
 app.get('/api/monitoring', async (_, res) => {
   try {
     const reports = await pool.query('SELECT * FROM reports');
