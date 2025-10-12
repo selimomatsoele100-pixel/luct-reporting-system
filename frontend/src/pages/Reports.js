@@ -75,7 +75,6 @@ const Reports = () => {
       [name]: value
     }));
 
-    // Auto-fill course details when course is selected
     if (name === 'course_code') {
       const selectedCourse = courses.find(course => course.course_code === value);
       if (selectedCourse) {
@@ -102,10 +101,8 @@ const Reports = () => {
 
       const response = await api.post('/reports', reportData);
       
-      // Add new report to the list
       setReports(prev => [response.data.report, ...prev]);
       
-      // Reset form and hide it
       setFormData({
         faculty: '',
         class_name: '',
@@ -123,7 +120,6 @@ const Reports = () => {
       });
       
       setShowReportForm(false);
-      alert('Report submitted successfully!');
     } catch (error) {
       console.error('Error submitting report:', error);
       setError('Failed to submit report');
@@ -154,7 +150,6 @@ const Reports = () => {
     <div>
       <Navigation />
       <div className="container">
-        {/* Report Creation Form */}
         {canCreateReports && showReportForm && (
           <div className="card" style={{ marginBottom: '30px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -176,7 +171,7 @@ const Reports = () => {
             <form onSubmit={handleSubmitReport}>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Course Code *</label>
+                  <label>Course Code</label>
                   <select
                     name="course_code"
                     value={formData.course_code}
@@ -192,46 +187,43 @@ const Reports = () => {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Faculty *</label>
+                  <label>Faculty</label>
                   <input
                     type="text"
                     name="faculty"
                     value={formData.faculty}
                     onChange={handleFormChange}
                     required
-                    placeholder="e.g., FICT"
                   />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Class Name *</label>
+                  <label>Class Name</label>
                   <input
                     type="text"
                     name="class_name"
                     value={formData.class_name}
                     onChange={handleFormChange}
                     required
-                    placeholder="e.g., DIT-1A"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Week of Reporting *</label>
+                  <label>Week of Reporting</label>
                   <input
                     type="text"
                     name="week_of_reporting"
                     value={formData.week_of_reporting}
                     onChange={handleFormChange}
                     required
-                    placeholder="e.g., Week 6"
                   />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Date of Lecture *</label>
+                  <label>Date of Lecture</label>
                   <input
                     type="date"
                     name="date_of_lecture"
@@ -241,21 +233,20 @@ const Reports = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Course Name *</label>
+                  <label>Course Name</label>
                   <input
                     type="text"
                     name="course_name"
                     value={formData.course_name}
                     onChange={handleFormChange}
                     required
-                    placeholder="e.g., Web Development"
                   />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Students Present *</label>
+                  <label>Students Present</label>
                   <input
                     type="number"
                     name="students_present"
@@ -266,7 +257,7 @@ const Reports = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Total Students *</label>
+                  <label>Total Students</label>
                   <input
                     type="number"
                     name="total_students"
@@ -280,18 +271,17 @@ const Reports = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Venue *</label>
+                  <label>Venue</label>
                   <input
                     type="text"
                     name="venue"
                     value={formData.venue}
                     onChange={handleFormChange}
                     required
-                    placeholder="e.g., Lab 101"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Scheduled Time *</label>
+                  <label>Scheduled Time</label>
                   <input
                     type="time"
                     name="scheduled_time"
@@ -303,25 +293,23 @@ const Reports = () => {
               </div>
 
               <div className="form-group">
-                <label>Topic Taught *</label>
+                <label>Topic Taught</label>
                 <textarea
                   name="topic_taught"
                   value={formData.topic_taught}
                   onChange={handleFormChange}
                   required
-                  placeholder="Describe the topics covered in this lecture..."
                   rows="3"
                 />
               </div>
 
               <div className="form-group">
-                <label>Learning Outcomes *</label>
+                <label>Learning Outcomes</label>
                 <textarea
                   name="learning_outcomes"
                   value={formData.learning_outcomes}
                   onChange={handleFormChange}
                   required
-                  placeholder="What did students learn from this lecture?"
                   rows="3"
                 />
               </div>
@@ -332,7 +320,6 @@ const Reports = () => {
                   name="recommendations"
                   value={formData.recommendations}
                   onChange={handleFormChange}
-                  placeholder="Any recommendations for improvement or follow-up..."
                   rows="3"
                 />
               </div>
@@ -350,7 +337,6 @@ const Reports = () => {
           </div>
         )}
 
-        {/* Reports List */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
@@ -365,12 +351,12 @@ const Reports = () => {
                   onClick={() => setShowReportForm(true)} 
                   className="btn btn-primary"
                 >
-                  + Create Report
+                  Create Report
                 </button>
               )}
               {reports.length > 0 && (
                 <button onClick={handleExportExcel} className="btn btn-success">
-                  📊 Export to Excel
+                  Export to Excel
                 </button>
               )}
             </div>
@@ -399,11 +385,11 @@ const Reports = () => {
                 {reports.map((report) => (
                   <tr key={report.id}>
                     <td>
-                      <div>{report.course_name || 'N/A'}</div>
-                      <small style={{ color: '#94a3b8' }}>{report.course_code || 'No code'}</small>
+                      <div>{report.course_name}</div>
+                      <small style={{ color: '#94a3b8' }}>{report.course_code}</small>
                     </td>
-                    <td>{report.class_name || 'N/A'}</td>
-                    <td>{report.lecturer_name || 'N/A'}</td>
+                    <td>{report.class_name}</td>
+                    <td>{report.lecturer_name}</td>
                     <td>{report.date_of_lecture ? new Date(report.date_of_lecture).toLocaleDateString() : 'N/A'}</td>
                     <td>
                       <div className="attendance-rate">
@@ -411,21 +397,30 @@ const Reports = () => {
                           {getAttendanceRate(report)}
                         </span>
                         <small>
-                          ({report.students_present || 0}/{report.total_students || 0})
+                          ({report.students_present}/{report.total_students})
                         </small>
                       </div>
                     </td>
                     <td>
-                      <span className={`status-badge status-${report.status || 'pending'}`}>
-                        {report.status || 'pending'}
+                      <span className={`status-badge status-${report.status}`}>
+                        {report.status}
                       </span>
                     </td>
                     <td>
                       <button 
                         className="btn btn-secondary btn-sm"
                         onClick={() => {
-                          // View report details
-                          alert(`Report Details:\n\nCourse: ${report.course_name}\nClass: ${report.class_name}\nTopic: ${report.topic_taught}\nAttendance: ${getAttendanceRate(report)}`);
+                          const details = `
+                            Course: ${report.course_name}
+                            Class: ${report.class_name}
+                            Lecturer: ${report.lecturer_name}
+                            Date: ${report.date_of_lecture ? new Date(report.date_of_lecture).toLocaleDateString() : 'N/A'}
+                            Topic: ${report.topic_taught}
+                            Attendance: ${getAttendanceRate(report)}
+                            Learning Outcomes: ${report.learning_outcomes}
+                            ${report.recommendations ? `Recommendations: ${report.recommendations}` : ''}
+                          `;
+                          alert(`Report Details:\n\n${details}`);
                         }}
                       >
                         View

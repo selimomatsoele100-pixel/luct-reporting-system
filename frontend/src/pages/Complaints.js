@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Navigation from '../components/Navigation';
 
-// =================== Complaint Form ===================
 const ComplaintForm = ({ onComplaintCreated }) => {
   const { user } = useAuth();
   const [complaintText, setComplaintText] = useState('');
@@ -15,7 +14,6 @@ const ComplaintForm = ({ onComplaintCreated }) => {
     fetchAvailableUsers();
   }, []);
 
-  // 🔹 Fetch users based on the user's role
   const fetchAvailableUsers = async () => {
     try {
       let endpoint = '';
@@ -48,7 +46,6 @@ const ComplaintForm = ({ onComplaintCreated }) => {
     }
   };
 
-  // 🔹 Submit complaint
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!complaintText.trim() || !complaintAgainst) {
@@ -77,7 +74,6 @@ const ComplaintForm = ({ onComplaintCreated }) => {
     <div className="card" style={{ marginBottom: '20px' }}>
       <h3>File New Complaint</h3>
       <form onSubmit={handleSubmit}>
-        {/* 🔹 User Selection */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px' }}>
             {user?.role === 'student'
@@ -114,7 +110,6 @@ const ComplaintForm = ({ onComplaintCreated }) => {
           </select>
         </div>
 
-        {/* 🔹 Complaint Text */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px' }}>
             Complaint Details:
@@ -136,7 +131,6 @@ const ComplaintForm = ({ onComplaintCreated }) => {
           />
         </div>
 
-        {/* 🔹 Submit */}
         <button
           type="submit"
           className="btn btn-primary"
@@ -149,7 +143,6 @@ const ComplaintForm = ({ onComplaintCreated }) => {
   );
 };
 
-// =================== Main Complaints Component ===================
 const Complaints = () => {
   const { user } = useAuth();
   const [complaints, setComplaints] = useState([]);
@@ -160,7 +153,6 @@ const Complaints = () => {
     fetchComplaints();
   }, [user]);
 
-  // 🔹 Fetch complaints
   const fetchComplaints = async () => {
     try {
       const [myComplaints, againstMe] = await Promise.all([
@@ -183,14 +175,11 @@ const Complaints = () => {
     }
   };
 
-  // 🔹 Handle new complaint creation
   const handleComplaintCreated = (newComplaint) => {
     setComplaints((prev) => [{ ...newComplaint, type: 'filed' }, ...prev]);
     setShowForm(false);
-    alert('Complaint filed successfully! You will receive a response soon.');
   };
 
-  // 🔹 Handle response to complaint
   const handleRespond = async (complaintId) => {
     const response = prompt('Enter your response to this complaint:');
     if (response && response.trim()) {
@@ -199,7 +188,6 @@ const Complaints = () => {
           response_text: response,
         });
         await fetchComplaints();
-        alert('Response submitted successfully!');
       } catch (error) {
         console.error('Error responding to complaint:', error);
         alert('Error submitting response');
@@ -207,7 +195,6 @@ const Complaints = () => {
     }
   };
 
-  // 🔹 Helper: title for each complaint
   const getComplaintTitle = (complaint) => {
     if (complaint.type === 'filed') {
       return `You complained against ${complaint.complaint_against_name} (${complaint.complaint_against_role.toUpperCase()})`;
@@ -216,7 +203,6 @@ const Complaints = () => {
     }
   };
 
-  // 🔹 Helper: status badge
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { color: '#ffc107', text: 'PENDING REVIEW' },
@@ -242,7 +228,6 @@ const Complaints = () => {
     );
   };
 
-  // 🔹 Filter complaints by tab
   const filteredComplaints = complaints.filter((complaint) => {
     if (activeTab === 'filed') return complaint.type === 'filed';
     if (activeTab === 'received') return complaint.type === 'received';
@@ -276,7 +261,6 @@ const Complaints = () => {
 
         {showForm && <ComplaintForm onComplaintCreated={handleComplaintCreated} />}
 
-        {/* Tabs */}
         <div className="card">
           <div
             style={{
@@ -313,7 +297,6 @@ const Complaints = () => {
             {activeTab === 'received' && 'Complaints Against You'}
           </h3>
 
-          {/* Complaint List */}
           {filteredComplaints.length === 0 ? (
             <p>No complaints found.</p>
           ) : (
@@ -388,7 +371,6 @@ const Complaints = () => {
           )}
         </div>
 
-        {/* Complaint Guidelines */}
         <div className="card">
           <h3>Complaint Guidelines</h3>
           <div style={{ lineHeight: '1.6' }}>
@@ -400,8 +382,7 @@ const Complaints = () => {
               <li>Program Leaders → Faculty Management (FMG)</li>
             </ul>
             <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#888' }}>
-              All complaints are confidential and will be handled according to LUCT policies.
-              You will receive a response from the relevant authority.
+              All complaints are confidential and will be handled according to institutional policies.
             </p>
           </div>
         </div>

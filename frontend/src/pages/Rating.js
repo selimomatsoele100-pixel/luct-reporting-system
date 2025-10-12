@@ -33,7 +33,6 @@ const Rating = () => {
         api.get('/courses')
       ]);
       
-      // Ensure ratings is always an array and filter out any undefined/null items
       const ratingsData = Array.isArray(ratingsResponse.data) ? ratingsResponse.data : [];
       const safeRatings = ratingsData.filter(rating => rating != null);
       
@@ -73,10 +72,9 @@ const Rating = () => {
       const response = await api.post('/ratings', {
         ...newRating,
         user_id: user?.id,
-        studentName: user?.name || 'Anonymous Student'
+        studentName: user?.name
       });
       
-      // Ensure the new rating is valid before adding to state
       if (response.data?.rating) {
         setRatings(prev => [response.data.rating, ...prev]);
       }
@@ -88,8 +86,6 @@ const Rating = () => {
         comment: '',
         category: 'teaching'
       });
-      
-      alert('Rating submitted successfully! Thank you for your feedback.');
     } catch (error) {
       console.error('Error submitting rating:', error);
       setError('Failed to submit rating. Please try again.');
@@ -123,7 +119,6 @@ const Rating = () => {
     ));
   };
 
-  // Get unique lecturers from existing ratings for suggestions - with safe filtering
   const existingLecturers = [...new Set(
     ratings
       .filter(rating => rating && rating.lecturer)
@@ -131,7 +126,6 @@ const Rating = () => {
       .filter(Boolean)
   )];
 
-  // Safe rating item component to handle undefined ratings
   const RatingItem = ({ rating }) => {
     if (!rating) return null;
     
@@ -140,10 +134,10 @@ const Rating = () => {
         <div className="rating-header">
           <div className="rating-info">
             <h4 style={{ color: '#f8fafc', margin: '0 0 5px 0' }}>
-              {rating.lecturer || 'N/A'}
+              {rating.lecturer}
             </h4>
             <span className="course" style={{ color: '#cbd5e1' }}>
-              {rating.course || 'N/A'} 
+              {rating.course}
               {rating.courseCode && ` (${rating.courseCode})`}
             </span>
           </div>
@@ -156,7 +150,7 @@ const Rating = () => {
               fontWeight: 'bold',
               fontSize: '1.1rem'
             }}>
-              {(rating.rating || 0)}/5
+              {rating.rating}/5
             </span>
           </div>
         </div>
@@ -179,7 +173,7 @@ const Rating = () => {
           color: '#94a3b8'
         }}>
           <span className="student">
-            By: {rating.studentName || rating.user?.name || 'Anonymous'}
+            By: {rating.studentName || rating.user?.name}
           </span>
           <span className="category" style={{ 
             textTransform: 'capitalize',
@@ -187,7 +181,7 @@ const Rating = () => {
             padding: '2px 8px',
             borderRadius: '12px'
           }}>
-            {rating.category || 'general'}
+            {rating.category}
           </span>
           <span className="date">
             {rating.date || (rating.created_at ? new Date(rating.created_at).toLocaleDateString() : 'N/A')}
@@ -233,7 +227,6 @@ const Rating = () => {
             </div>
           )}
 
-          {/* Rating Summary */}
           <div className="rating-summary">
             <div className="summary-card">
               <h3>Overall Rating</h3>
@@ -248,34 +241,28 @@ const Rating = () => {
           </div>
 
           <div className="rating-content">
-            {/* Add Rating Form */}
             <div className="card">
               <h2>Add Your Rating</h2>
               <form onSubmit={submitRating} className="rating-form">
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Lecturer Name *</label>
+                    <label>Lecturer Name</label>
                     <input
                       type="text"
                       name="lecturer"
                       value={newRating.lecturer}
                       onChange={handleRatingChange}
                       required
-                      placeholder="Enter lecturer's full name"
                       list="lecturer-suggestions"
                     />
-                    {/* Suggestions datalist */}
                     <datalist id="lecturer-suggestions">
                       {existingLecturers.map((lecturer, index) => (
                         <option key={index} value={lecturer} />
                       ))}
                     </datalist>
-                    <small style={{ color: '#94a3b8', marginTop: '5px', display: 'block' }}>
-                      Start typing to see suggestions from previous ratings
-                    </small>
                   </div>
                   <div className="form-group">
-                    <label>Course *</label>
+                    <label>Course</label>
                     <select
                       name="course"
                       value={newRating.course}
@@ -309,7 +296,7 @@ const Rating = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Your Rating *</label>
+                  <label>Your Rating</label>
                   <div className="star-rating-input">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <span
@@ -338,12 +325,8 @@ const Rating = () => {
                     value={newRating.comment}
                     onChange={handleRatingChange}
                     rows="4"
-                    placeholder="Share your experience, what you liked, and suggestions for improvement..."
                     style={{ resize: 'vertical' }}
                   />
-                  <small style={{ color: '#94a3b8' }}>
-                    Your feedback helps improve teaching quality and learning experience
-                  </small>
                 </div>
 
                 <div className="form-actions">
@@ -373,7 +356,6 @@ const Rating = () => {
               </form>
             </div>
 
-            {/* Ratings List */}
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h2>Recent Ratings</h2>
@@ -394,9 +376,6 @@ const Rating = () => {
                   fontStyle: 'italic'
                 }}>
                   <p>No ratings yet. Be the first to share your feedback!</p>
-                  <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>
-                    Your ratings help improve the learning experience for everyone.
-                  </p>
                 </div>
               )}
             </div>
