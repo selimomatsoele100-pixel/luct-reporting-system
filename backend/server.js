@@ -47,12 +47,32 @@ pool.on('error', (err) => {
 });
 
 // ======================================================
-// 🧱 MIDDLEWARE
+// 🧱 MIDDLEWARE (CORS + JSON)
 // ======================================================
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://animated-jelly-6d2f4d.netlify.app'],
-  credentials: true
-}));
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://animated-jelly-6d2f4d.netlify.app',
+  'https://luct-reporting-system-lac.vercel.app',
+  'https://luct-reporting-system.vercel.app'
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow Postman, curl, etc.
+
+      // ✅ Allow Vercel subdomains automatically
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        console.warn(`🚫 Blocked CORS request from: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 // ======================================================
