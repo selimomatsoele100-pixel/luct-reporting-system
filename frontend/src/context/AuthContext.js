@@ -18,47 +18,12 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus();
   }, []);
 
-  // Mock user data for demonstration
-  const mockUsers = {
-    'lecturer@luct.ac.ls': {
-      id: 1,
-      email: 'lecturer@luct.ac.ls',
-      name: 'Dr. John Smith',
-      role: 'lecturer',
-      faculty: 'FICT',
-      program: 'Information Technology'
-    },
-    'student@luct.ac.ls': {
-      id: 2,
-      email: 'student@luct.ac.ls',
-      name: 'Jane Doe',
-      role: 'student',
-      faculty: 'FICT',
-      program: 'Information Technology',
-      class_id: 1
-    },
-    'prl@luct.ac.ls': {
-      id: 3,
-      email: 'prl@luct.ac.ls',
-      name: 'Prof. David Wilson',
-      role: 'prl',
-      faculty: 'FICT',
-      program: 'Information Technology'
-    },
-    'pl@luct.ac.ls': {
-      id: 4,
-      email: 'pl@luct.ac.ls',
-      name: 'Dr. Sarah Johnson',
-      role: 'pl',
-      faculty: 'FICT',
-      program: 'Information Technology'
-    }
-  };
-
   const checkAuthStatus = async () => {
     try {
       const userData = localStorage.getItem('user');
-      if (userData) {
+      const token = localStorage.getItem('token');
+      
+      if (userData && token) {
         setUser(JSON.parse(userData));
       }
     } catch (error) {
@@ -72,17 +37,29 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      // Mock authentication - in real app, this would be an API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // This would be replaced with actual API call
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
+
+      const data = await response.json();
       
-      // Simple mock validation
-      if (password === 'password' && mockUsers[email]) {
-        const user = mockUsers[email];
-        setUser(user);
-        localStorage.setItem('user', JSON.stringify(user));
-        return { data: { user, token: 'mock-jwt-token' } };
+      if (data.user && data.token) {
+        setUser(data.user);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('token', data.token);
+        return data;
       } else {
-        throw new Error('Invalid email or password');
+        throw new Error('Invalid response from server');
       }
     } catch (error) {
       throw error;
@@ -95,18 +72,30 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      // Mock registration
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // This would be replaced with actual API call
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+
+      const data = await response.json();
       
-      const newUser = {
-        id: Date.now(),
-        ...userData,
-        created_at: new Date().toISOString()
-      };
-      
-      setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      return { data: { user: newUser, token: 'mock-jwt-token' } };
+      if (data.user && data.token) {
+        setUser(data.user);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('token', data.token);
+        return data;
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
       throw error;
     } finally {
@@ -116,7 +105,37 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     setUser(null);
+  };
+
+  const updateUser = (updatedUserData) => {
+    setUser(prevUser => {
+      const newUser = { ...prevUser, ...updatedUserData };
+      localStorage.setItem('user', JSON.stringify(newUser));
+      return newUser;
+    });
+  };
+
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+    }
   };
 
   const value = {
@@ -124,6 +143,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    updateUser,
+    refreshUser,
     loading
   };
 
