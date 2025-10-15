@@ -1,5 +1,4 @@
 require('dotenv').config();
-console.log("🧾 Loaded ENV:", process.env.DATABASE_URL ? "DATABASE_URL found ✅" : "DATABASE_URL missing ❌");
 
 const express = require('express');
 const cors = require('cors');
@@ -10,12 +9,10 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// ======================================================
-// 🧠 DATABASE CONFIGURATION
-// ======================================================
+// Database Configuration
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || `postgresql://postgres:123456@localhost:5432/luct_system`,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 pool.connect()
@@ -25,47 +22,44 @@ pool.connect()
   })
   .catch(err => console.error('❌ DB connection failed:', err.message));
 
-pool.on('error', (err) => console.error('⚠️ Unexpected DB error:', err));
+// CORS Configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://luct-reporting-system.vercel.app',
+  'https://luct-reporting-system-lac.vercel.app',
+  'https://luct-reporting-system-1bad.vercel.app',
+  'https://animated-jelly-6d2f4d.netlify.app'
+];
 
-// ======================================================
-// 🧱 MIDDLEWARE
-// ======================================================
 app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'https://luct-reporting-system.vercel.app',
-      'https://luct-reporting-system-lac.vercel.app',
-      'https://luct-reporting-system-1bad.vercel.app',
-      'https://animated-jelly-6d2f4d.netlify.app'
-    ];
-
-    if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`🚫 Blocked CORS from: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
 }));
-app.use(express.json());
 
-// ======================================================
-// 🌐 HEALTH CHECK
-// ======================================================
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Health Check
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT NOW()');
-    res.json({ status: 'OK', db: 'Connected', time: new Date().toISOString() });
+    res.json({ 
+      status: 'OK', 
+      db: 'Connected', 
+      time: new Date().toISOString() 
+    });
   } catch (err) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
 });
 
-// ======================================================
-// 🔐 AUTH ROUTES
-// ======================================================
+// Auth Routes
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password, role, faculty } = req.body;
@@ -75,19 +69,22 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (exists.rowCount > 0) {
+    if (exists.rows.length > 0) {
       return res.status(409).json({ error: 'Email already registered' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const query = `
       INSERT INTO users (name, email, password, role, faculty)
-      VALUES ($1,$2,$3,$4,$5)
-      RETURNING id, name, email, role, faculty;
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, name, email, role, faculty, created_at;
     `;
     const result = await pool.query(query, [name, email, hashedPassword, role, faculty]);
 
-    res.status(201).json({ message: 'User registered successfully', user: result.rows[0] });
+    res.status(201).json({ 
+      message: 'User registered successfully', 
+      user: result.rows[0] 
+    });
   } catch (err) {
     console.error('❌ Registration failed:', err.message);
     res.status(500).json({ error: 'Registration failed' });
@@ -126,9 +123,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// ======================================================
-// 🧾 REPORT ROUTES
-// ======================================================
+// Report Routes
 app.post('/api/reports', async (req, res) => {
   try {
     const {
@@ -138,8 +133,9 @@ app.post('/api/reports', async (req, res) => {
       recommendations, lecturer_name, status
     } = req.body;
 
-    if (!course_code || !course_name || !class_name)
+    if (!course_code || !course_name || !class_name) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     const insertQuery = `
       INSERT INTO reports (
@@ -147,7 +143,7 @@ app.post('/api/reports', async (req, res) => {
         course_name, course_code, students_present, total_students,
         venue, scheduled_time, topic_taught, learning_outcomes,
         recommendations, lecturer_name, status
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *;
     `;
 
@@ -166,7 +162,7 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
-app.get('/api/reports/all', async (_, res) => {
+app.get('/api/reports/all', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM reports ORDER BY id DESC');
     res.json(result.rows);
@@ -176,27 +172,19 @@ app.get('/api/reports/all', async (_, res) => {
   }
 });
 
-// ======================================================
-// 🏫 CLASSES ROUTE
-// ======================================================
-app.get('/api/courses/classes', async (_, res) => {
+// Classes Route
+app.get('/api/courses/classes', async (req, res) => {
   try {
     const result = await pool.query('SELECT DISTINCT class_name FROM reports ORDER BY class_name');
-    res.json(result.rows.length > 0 ? result.rows : [
-      { class_name: 'Class A' },
-      { class_name: 'Class B' },
-      { class_name: 'Class C' }
-    ]);
+    res.json(result.rows.length > 0 ? result.rows : []);
   } catch (err) {
     console.error('❌ Error fetching classes:', err.message);
-    res.json([{ class_name: 'Default Class' }]);
+    res.json([]);
   }
 });
 
-// ======================================================
-// 💬 COMPLAINTS ROUTES
-// ======================================================
-app.get('/api/complaints', async (_, res) => {
+// Complaints Routes
+app.get('/api/complaints', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
     res.json(result.rows || []);
@@ -209,8 +197,9 @@ app.get('/api/complaints', async (_, res) => {
 app.post('/api/complaints', async (req, res) => {
   try {
     const { complaint_text, complaint_against_id } = req.body;
-    if (!complaint_text || !complaint_against_id)
+    if (!complaint_text || !complaint_against_id) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     const query = `
       INSERT INTO complaints (complaint_text, complaint_against_id, status)
@@ -225,25 +214,16 @@ app.post('/api/complaints', async (req, res) => {
   }
 });
 
-// ======================================================
-// 🧩 SERVE FRONTEND (PRODUCTION)
-// ======================================================
+// Serve Frontend in Production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
-  app.get('*', (_, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'))
-  );
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+  });
 }
 
-// ======================================================
-// 🚀 START SERVER
-// ======================================================
+// Start Server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('='.repeat(70));
-  console.log('🚀 LUCT REPORTING SYSTEM BACKEND (Render)');
-  console.log(`🌐 Live URL: https://luct-reporting-system-1-9jwp.onrender.com`);
-  console.log(`📊 Database: ${process.env.DATABASE_URL ? 'Render Cloud DB' : 'Local DB'}`);
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔌 Listening on PORT: ${PORT}`);
-  console.log('='.repeat(70));
 });

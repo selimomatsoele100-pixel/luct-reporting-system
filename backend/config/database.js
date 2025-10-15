@@ -1,37 +1,155 @@
-const { Pool } = require('pg');
+const pool = require('./config/database');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-let pool;
-
-if (process.env.DATABASE_URL) {
-  console.log('🌐 Using DATABASE_URL for connection');
-  pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  });
-} else {
-    console.log('🖥️ Using LOCAL database connection');
-    pool = new Pool({
-      user: process.env.DB_USER || 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      database: process.env.DB_NAME || 'luct_reporting',
-      password: process.env.DB_PASSWORD || '123456',
-      port: process.env.DB_PORT || 5432,
-    });
-}
-
-(async () => {
+const initDatabase = async () => {
   try {
-    const client = await pool.connect();
-    console.log('✅ Connected to PostgreSQL database successfully');
-    console.log(`📊 Mode: ${process.env.DATABASE_URL ? 'ONLINE (Render / Cloud)' : 'LOCAL'}`);
-    client.release();
-  } catch (err) {
-    console.error('❌ Failed to connect to PostgreSQL database:');
-    console.error('   →', err.message);
-  }
-})();
+    console.log('🔄 Starting database initialization...');
 
-module.exports = { pool, query: (text, params) => pool.query(text, params) };
+    // Drop tables if they exist
+    await pool.query('DROP TABLE IF EXISTS class_assignments CASCADE');
+    await pool.query('DROP TABLE IF EXISTS complaints CASCADE');
+    await pool.query('DROP TABLE IF EXISTS reports CASCADE');
+    await pool.query('DROP TABLE IF EXISTS courses CASCADE');
+    await pool.query('DROP TABLE IF EXISTS users CASCADE');
+    await pool.query('DROP TABLE IF EXISTS classes CASCADE');
+
+    // Create tables
+    await pool.query(`
+      CREATE TABLE classes (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        faculty VARCHAR(100) NOT NULL,
+        program_leader_id INTEGER
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL CHECK (role IN ('student', 'lecturer', 'prl', 'pl', 'fmg')),
+        faculty VARCHAR(100) NOT NULL CHECK (faculty IN ('FICT', 'FBMG', 'FABE')),
+        class_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE courses (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        code VARCHAR(50) NOT NULL,
+        faculty VARCHAR(100) NOT NULL,
+        assigned_lecturer_id INTEGER
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE reports (
+        id SERIAL PRIMARY KEY,
+        faculty_name VARCHAR(100) NOT NULL,
+        class_name VARCHAR(255) NOT NULL,
+        week_of_reporting VARCHAR(50) NOT NULL,
+        date_of_lecture DATE NOT NULL,
+        course_name VARCHAR(255) NOT NULL,
+        course_code VARCHAR(50) NOT NULL,
+        lecturer_name VARCHAR(255) NOT NULL,
+        actual_students_present INTEGER NOT NULL,
+        total_registered_students INTEGER NOT NULL,
+        venue VARCHAR(255) NOT NULL,
+        scheduled_time TIME NOT NULL,
+        topic_taught TEXT NOT NULL,
+        learning_outcomes TEXT NOT NULL,
+        recommendations TEXT NOT NULL,
+        lecturer_id INTEGER NOT NULL,
+        student_signed BOOLEAN DEFAULT FALSE,
+        student_signed_at TIMESTAMP,
+        prl_reviewed BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE complaints (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        complainant_id INTEGER NOT NULL,
+        target_user_id INTEGER NOT NULL,
+        complaint_type VARCHAR(50) NOT NULL CHECK (complaint_type IN ('lecturer', 'prl', 'pl', 'fmg')),
+        status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved')),
+        response TEXT,
+        responded_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE class_assignments (
+        id SERIAL PRIMARY KEY,
+        lecturer_id INTEGER NOT NULL,
+        class_id INTEGER NOT NULL,
+        course_id INTEGER NOT NULL,
+        assigned_by INTEGER NOT NULL,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Add foreign key constraints
+    await pool.query(`
+      ALTER TABLE users 
+      ADD CONSTRAINT fk_users_class 
+      FOREIGN KEY (class_id) REFERENCES classes(id)
+    `);
+
+    await pool.query(`
+      ALTER TABLE courses 
+      ADD CONSTRAINT fk_courses_lecturer 
+      FOREIGN KEY (assigned_lecturer_id) REFERENCES users(id)
+    `);
+
+    await pool.query(`
+      ALTER TABLE reports 
+      ADD CONSTRAINT fk_reports_lecturer 
+      FOREIGN KEY (lecturer_id) REFERENCES users(id)
+    `);
+
+    await pool.query(`
+      ALTER TABLE complaints 
+      ADD CONSTRAINT fk_complaints_complainant 
+      FOREIGN KEY (complainant_id) REFERENCES users(id),
+      ADD CONSTRAINT fk_complaints_target 
+      FOREIGN KEY (target_user_id) REFERENCES users(id)
+    `);
+
+    await pool.query(`
+      ALTER TABLE class_assignments 
+      ADD CONSTRAINT fk_assignments_lecturer 
+      FOREIGN KEY (lecturer_id) REFERENCES users(id),
+      ADD CONSTRAINT fk_assignments_class 
+      FOREIGN KEY (class_id) REFERENCES classes(id),
+      ADD CONSTRAINT fk_assignments_course 
+      FOREIGN KEY (course_id) REFERENCES courses(id),
+      ADD CONSTRAINT fk_assignments_assigned_by 
+      FOREIGN KEY (assigned_by) REFERENCES users(id)
+    `);
+
+    await pool.query(`
+      ALTER TABLE classes 
+      ADD CONSTRAINT fk_classes_program_leader 
+      FOREIGN KEY (program_leader_id) REFERENCES users(id)
+    `);
+
+    console.log('🎉 Database initialization completed successfully!');
+    
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+  } finally {
+    process.exit();
+  }
+};
+
+initDatabase();
