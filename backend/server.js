@@ -23,15 +23,21 @@ pool.connect()
   .catch(err => console.error('❌ DB connection failed:', err.message));
 
 // ======================================================
-// 🧱 FIXED CORS CONFIGURATION - SIMPLIFIED
+// 🧱 CORS CONFIGURATION
 // ======================================================
 app.use(cors({
-  origin: true, // Allow all origins in development
+  origin: true, // Allow all origins
   credentials: true,
 }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
 // Health Check
 app.get('/api/health', async (req, res) => {
@@ -48,7 +54,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // ======================================================
-// 🔐 AUTH ROUTES - COMPLETELY FIXED
+// 🔐 AUTH ROUTES
 // ======================================================
 app.post('/api/auth/register', async (req, res) => {
   let client;
@@ -62,14 +68,7 @@ app.post('/api/auth/register', async (req, res) => {
     if (!name || !email || !password || !role || !faculty) {
       return res.status(400).json({ 
         success: false,
-        error: 'All fields are required',
-        missing: {
-          name: !name,
-          email: !email, 
-          password: !password,
-          role: !role,
-          faculty: !faculty
-        }
+        error: 'All fields are required'
       });
     }
 
@@ -172,7 +171,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ======================================================
-// 🧾 REPORT ROUTES
+// 🧾 OTHER ROUTES (keep your existing routes here)
 // ======================================================
 app.post('/api/reports', async (req, res) => {
   try {
@@ -222,48 +221,6 @@ app.get('/api/reports/all', async (req, res) => {
   }
 });
 
-// Classes Route
-app.get('/api/courses/classes', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT DISTINCT class_name FROM reports ORDER BY class_name');
-    res.json(result.rows.length > 0 ? result.rows : []);
-  } catch (err) {
-    console.error('❌ Error fetching classes:', err.message);
-    res.json([]);
-  }
-});
-
-// Complaints Routes
-app.get('/api/complaints', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
-    res.json(result.rows || []);
-  } catch (err) {
-    console.error('❌ Error fetching complaints:', err.message);
-    res.json([]);
-  }
-});
-
-app.post('/api/complaints', async (req, res) => {
-  try {
-    const { complaint_text, complaint_against_id } = req.body;
-    if (!complaint_text || !complaint_against_id) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    const query = `
-      INSERT INTO complaints (complaint_text, complaint_against_id, status)
-      VALUES ($1, $2, 'pending')
-      RETURNING *;
-    `;
-    const result = await pool.query(query, [complaint_text, complaint_against_id]);
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('❌ Error creating complaint:', err.message);
-    res.status(500).json({ error: 'Failed to create complaint' });
-  }
-});
-
 // Serve Frontend in Production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
@@ -293,4 +250,5 @@ app.use('*', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Missing URL'}`);
 });
