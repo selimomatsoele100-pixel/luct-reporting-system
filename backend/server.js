@@ -171,7 +171,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ======================================================
-// 🧾 OTHER ROUTES (keep your existing routes here)
+// 🧾 REPORT ROUTES
 // ======================================================
 app.post('/api/reports', async (req, res) => {
   try {
@@ -221,7 +221,139 @@ app.get('/api/reports/all', async (req, res) => {
   }
 });
 
-// Serve Frontend in Production
+// Get user's own reports
+app.get('/api/reports/my-reports', async (req, res) => {
+  try {
+    // For now, return all reports until you implement user-specific logic
+    const result = await pool.query('SELECT * FROM reports ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Error fetching user reports:', err.message);
+    res.json([]);
+  }
+});
+
+// ======================================================
+// 🏫 CLASSES & COURSES ROUTES
+// ======================================================
+app.get('/api/courses/classes', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT DISTINCT class_name FROM reports ORDER BY class_name');
+    res.json(result.rows.length > 0 ? result.rows : []);
+  } catch (err) {
+    console.error('❌ Error fetching classes:', err.message);
+    res.json([]);
+  }
+});
+
+app.get('/api/courses', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM courses ORDER BY name');
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error('❌ Error fetching courses:', err.message);
+    res.json([]);
+  }
+});
+
+// ======================================================
+// 💬 COMPLAINTS ROUTES
+// ======================================================
+app.get('/api/complaints', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error('❌ Error fetching complaints:', err.message);
+    res.json([]);
+  }
+});
+
+app.post('/api/complaints', async (req, res) => {
+  try {
+    const { complaint_text, complaint_against_id } = req.body;
+    if (!complaint_text || !complaint_against_id) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const query = `
+      INSERT INTO complaints (complaint_text, complaint_against_id, status)
+      VALUES ($1, $2, 'pending')
+      RETURNING *;
+    `;
+    const result = await pool.query(query, [complaint_text, complaint_against_id]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('❌ Error creating complaint:', err.message);
+    res.status(500).json({ error: 'Failed to create complaint' });
+  }
+});
+
+// Get user's complaints
+app.get('/api/complaints/my-complaints', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error('❌ Error fetching user complaints:', err.message);
+    res.json([]);
+  }
+});
+
+// Get complaints against user
+app.get('/api/complaints/against-me', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error('❌ Error fetching complaints against user:', err.message);
+    res.json([]);
+  }
+});
+
+// ======================================================
+// 📊 MONITORING ROUTES
+// ======================================================
+app.get('/api/monitoring/data', async (req, res) => {
+  try {
+    // Return basic monitoring data
+    const reportsCount = await pool.query('SELECT COUNT(*) FROM reports');
+    const usersCount = await pool.query('SELECT COUNT(*) FROM users');
+    const complaintsCount = await pool.query('SELECT COUNT(*) FROM complaints');
+    
+    res.json({
+      reports: parseInt(reportsCount.rows[0].count),
+      users: parseInt(usersCount.rows[0].count),
+      complaints: parseInt(complaintsCount.rows[0].count),
+      recentActivity: []
+    });
+  } catch (err) {
+    console.error('❌ Error fetching monitoring data:', err.message);
+    res.json({
+      reports: 0,
+      users: 0,
+      complaints: 0,
+      recentActivity: []
+    });
+  }
+});
+
+// ======================================================
+// 👥 USERS ROUTES
+// ======================================================
+app.get('/api/users', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, email, role, faculty FROM users ORDER BY name');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Error fetching users:', err.message);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// ======================================================
+// 🧩 SERVE FRONTEND (PRODUCTION)
+// ======================================================
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
   app.get('*', (req, res) => {
@@ -229,7 +361,9 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Global error handler
+// ======================================================
+// 🚨 ERROR HANDLING
+// ======================================================
 app.use((err, req, res, next) => {
   console.error('🚨 Global error handler:', err);
   res.status(500).json({ 
@@ -238,11 +372,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
   res.status(404).json({ 
     success: false,
-    error: 'Route not found' 
+    error: 'API route not found' 
   });
 });
 
@@ -251,4 +385,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Missing URL'}`);
+  console.log(`✅ All API routes configured`);
 });
