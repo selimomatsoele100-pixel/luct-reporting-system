@@ -23,28 +23,14 @@ pool.connect()
   .catch(err => console.error('❌ DB connection failed:', err.message));
 
 // ======================================================
-// 🧱 FIXED CORS CONFIGURATION
+// 🧱 FIXED CORS CONFIGURATION - SIMPLIFIED
 // ======================================================
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://luct-reporting-system.vercel.app',
-    'https://luct-reporting-system-lac.vercel.app', 
-    'https://luct-reporting-system-1bad.vercel.app',
-    'https://animated-jelly-6d2f4d.netlify.app',
-    'https://luct-reporting-frontend.vercel.app', // Add your actual Vercel domain
-    /.vercel\.app$/, // Allow all Vercel subdomains
-    /.netlify\.app$/ // Allow all Netlify subdomains
-  ],
+  origin: true, // Allow all origins in development
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Handle preflight requests
-app.options('*', cors());
-
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Health Check
@@ -61,15 +47,21 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Auth Routes - FIXED VERSION
+// ======================================================
+// 🔐 AUTH ROUTES - COMPLETELY FIXED
+// ======================================================
 app.post('/api/auth/register', async (req, res) => {
+  let client;
   try {
+    client = await pool.connect();
     const { name, email, password, role, faculty } = req.body;
 
     console.log('📝 Registration attempt:', { name, email, role, faculty });
 
+    // Validation
     if (!name || !email || !password || !role || !faculty) {
       return res.status(400).json({ 
+        success: false,
         error: 'All fields are required',
         missing: {
           name: !name,
@@ -82,11 +74,11 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     // Check if user exists
-    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const exists = await client.query('SELECT id FROM users WHERE email = $1', [email]);
     if (exists.rows.length > 0) {
       return res.status(409).json({ 
-        error: 'Email already registered',
-        email: email
+        success: false,
+        error: 'Email already registered'
       });
     }
 
@@ -98,11 +90,12 @@ app.post('/api/auth/register', async (req, res) => {
       RETURNING id, name, email, role, faculty, created_at;
     `;
     
-    const result = await pool.query(query, [name, email, hashedPassword, role, faculty]);
+    const result = await client.query(query, [name, email, hashedPassword, role, faculty]);
     
     console.log('✅ User registered successfully:', result.rows[0].email);
 
     res.status(201).json({ 
+      success: true,
       message: 'User registered successfully', 
       user: result.rows[0],
       token: 'temp-token-' + Date.now()
@@ -111,49 +104,51 @@ app.post('/api/auth/register', async (req, res) => {
   } catch (err) {
     console.error('❌ Registration failed:', err.message);
     res.status(500).json({ 
-      error: 'Registration failed',
-      details: err.message
+      success: false,
+      error: 'Registration failed: ' + err.message
     });
+  } finally {
+    if (client) client.release();
   }
 });
 
 app.post('/api/auth/login', async (req, res) => {
+  let client;
   try {
+    client = await pool.connect();
     const { email, password } = req.body;
 
     console.log('🔐 Login attempt:', { email });
 
     if (!email || !password) {
       return res.status(400).json({ 
-        error: 'Email and password required',
-        missing: {
-          email: !email,
-          password: !password
-        }
+        success: false,
+        error: 'Email and password required'
       });
     }
 
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const userResult = await client.query('SELECT * FROM users WHERE email = $1', [email]);
     const user = userResult.rows[0];
 
     if (!user) {
       return res.status(404).json({ 
-        error: 'User not found',
-        email: email
+        success: false,
+        error: 'User not found'
       });
     }
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
       return res.status(401).json({ 
-        error: 'Invalid credentials',
-        email: email
+        success: false,
+        error: 'Invalid credentials'
       });
     }
 
     console.log('✅ Login successful:', user.email);
 
     res.json({
+      success: true,
       message: 'Login successful',
       user: {
         id: user.id,
@@ -168,13 +163,17 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err) {
     console.error('❌ Login failed:', err.message);
     res.status(500).json({ 
-      error: 'Login failed',
-      details: err.message
+      success: false,
+      error: 'Login failed: ' + err.message
     });
+  } finally {
+    if (client) client.release();
   }
 });
 
-// Report Routes
+// ======================================================
+// 🧾 REPORT ROUTES
+// ======================================================
 app.post('/api/reports', async (req, res) => {
   try {
     const {
@@ -273,9 +272,25 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('🚨 Global error handler:', err);
+  res.status(500).json({ 
+    success: false,
+    error: 'Internal server error'
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    success: false,
+    error: 'Route not found' 
+  });
+});
+
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✅ CORS configured for frontend domains`);
 });
