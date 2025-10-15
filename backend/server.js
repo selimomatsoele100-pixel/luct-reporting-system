@@ -59,35 +59,59 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Auth Routes
+// Auth Routes - FIXED VERSION
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password, role, faculty } = req.body;
 
+    console.log('📝 Registration attempt:', { name, email, role, faculty });
+
     if (!name || !email || !password || !role || !faculty) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ 
+        error: 'All fields are required',
+        missing: {
+          name: !name,
+          email: !email, 
+          password: !password,
+          role: !role,
+          faculty: !faculty
+        }
+      });
     }
 
+    // Check if user exists
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (exists.rows.length > 0) {
-      return res.status(409).json({ error: 'Email already registered' });
+      return res.status(409).json({ 
+        error: 'Email already registered',
+        email: email
+      });
     }
 
+    // Hash password and create user
     const hashedPassword = await bcrypt.hash(password, 10);
     const query = `
       INSERT INTO users (name, email, password, role, faculty)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id, name, email, role, faculty, created_at;
     `;
+    
     const result = await pool.query(query, [name, email, hashedPassword, role, faculty]);
+    
+    console.log('✅ User registered successfully:', result.rows[0].email);
 
     res.status(201).json({ 
       message: 'User registered successfully', 
-      user: result.rows[0] 
+      user: result.rows[0],
+      token: 'temp-token-' + Date.now() // Temporary token for frontend
     });
+
   } catch (err) {
     console.error('❌ Registration failed:', err.message);
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ 
+      error: 'Registration failed',
+      details: err.message
+    });
   }
 });
 
@@ -95,17 +119,37 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('🔐 Login attempt:', { email });
+
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+      return res.status(400).json({ 
+        error: 'Email and password required',
+        missing: {
+          email: !email,
+          password: !password
+        }
+      });
     }
 
     const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     const user = userResult.rows[0];
 
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ 
+        error: 'User not found',
+        email: email
+      });
+    }
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!valid) {
+      return res.status(401).json({ 
+        error: 'Invalid credentials',
+        email: email
+      });
+    }
+
+    console.log('✅ Login successful:', user.email);
 
     res.json({
       message: 'Login successful',
@@ -115,11 +159,16 @@ app.post('/api/auth/login', async (req, res) => {
         email: user.email,
         role: user.role,
         faculty: user.faculty,
-      }
+      },
+      token: 'temp-token-' + Date.now() // Temporary token
     });
+
   } catch (err) {
     console.error('❌ Login failed:', err.message);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ 
+      error: 'Login failed',
+      details: err.message
+    });
   }
 });
 
