@@ -31,12 +31,22 @@ pool.on('error', (err) => console.error('⚠️ Unexpected DB error:', err));
 // 🧱 MIDDLEWARE
 // ======================================================
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://luct-reporting-system.vercel.app',
-    'https://luct-reporting-system-lac.vercel.app',
-    'https://animated-jelly-6d2f4d.netlify.app'
-  ],
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'https://luct-reporting-system.vercel.app',
+      'https://luct-reporting-system-lac.vercel.app',
+      'https://luct-reporting-system-1bad.vercel.app',
+      'https://animated-jelly-6d2f4d.netlify.app'
+    ];
+
+    if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+      callback(null, true);
+    } else {
+      console.warn(`🚫 Blocked CORS from: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());
@@ -167,12 +177,29 @@ app.get('/api/reports/all', async (_, res) => {
 });
 
 // ======================================================
+// 🏫 CLASSES ROUTE
+// ======================================================
+app.get('/api/courses/classes', async (_, res) => {
+  try {
+    const result = await pool.query('SELECT DISTINCT class_name FROM reports ORDER BY class_name');
+    res.json(result.rows.length > 0 ? result.rows : [
+      { class_name: 'Class A' },
+      { class_name: 'Class B' },
+      { class_name: 'Class C' }
+    ]);
+  } catch (err) {
+    console.error('❌ Error fetching classes:', err.message);
+    res.json([{ class_name: 'Default Class' }]);
+  }
+});
+
+// ======================================================
 // 💬 COMPLAINTS ROUTES
 // ======================================================
 app.get('/api/complaints', async (_, res) => {
   try {
     const result = await pool.query('SELECT * FROM complaints ORDER BY created_at DESC');
-    res.json(Array.isArray(result.rows) ? result.rows : []);
+    res.json(result.rows || []);
   } catch (err) {
     console.error('❌ Error fetching complaints:', err.message);
     res.json([]);
@@ -195,53 +222,6 @@ app.post('/api/complaints', async (req, res) => {
   } catch (err) {
     console.error('❌ Error creating complaint:', err.message);
     res.status(500).json({ error: 'Failed to create complaint' });
-  }
-});
-
-// ======================================================
-// 📊 MONITORING ROUTES
-// ======================================================
-app.get('/api/monitoring/data', async (_, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM reports ORDER BY id DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error('❌ Monitoring fetch failed:', err.message);
-    res.json([]);
-  }
-});
-
-app.get('/api/monitoring', async (_, res) => {
-  try {
-    const reports = await pool.query('SELECT * FROM reports');
-    const complaints = await pool.query('SELECT * FROM complaints');
-    const ratings = await pool.query('SELECT * FROM rating');
-
-    const total_reports = reports.rowCount || 0;
-    const pending_reports = reports.rows.filter(r => r.status === 'pending').length;
-    const approved_reports = reports.rows.filter(r => r.status === 'approved').length;
-    const complaints_count = complaints.rowCount || 0;
-
-    const avg_rating = ratings.rowCount
-      ? Math.round(ratings.rows.reduce((sum, r) => sum + (r.score || 0), 0) / ratings.rowCount)
-      : 0;
-
-    res.json({
-      total_reports,
-      pending_reports,
-      approved_reports,
-      complaints: complaints_count,
-      average_rating: avg_rating,
-    });
-  } catch (err) {
-    console.error('❌ Monitoring failed:', err.message);
-    res.json({
-      total_reports: 0,
-      pending_reports: 0,
-      approved_reports: 0,
-      complaints: 0,
-      average_rating: 0,
-    });
   }
 });
 
