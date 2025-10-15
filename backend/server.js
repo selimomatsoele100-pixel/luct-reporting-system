@@ -22,25 +22,27 @@ pool.connect()
   })
   .catch(err => console.error('❌ DB connection failed:', err.message));
 
-// CORS Configuration
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://luct-reporting-system.vercel.app',
-  'https://luct-reporting-system-lac.vercel.app',
-  'https://luct-reporting-system-1bad.vercel.app',
-  'https://animated-jelly-6d2f4d.netlify.app'
-];
-
+// ======================================================
+// 🧱 FIXED CORS CONFIGURATION
+// ======================================================
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'http://localhost:3000',
+    'https://luct-reporting-system.vercel.app',
+    'https://luct-reporting-system-lac.vercel.app', 
+    'https://luct-reporting-system-1bad.vercel.app',
+    'https://animated-jelly-6d2f4d.netlify.app',
+    'https://luct-reporting-frontend.vercel.app', // Add your actual Vercel domain
+    /.vercel\.app$/, // Allow all Vercel subdomains
+    /.netlify\.app$/ // Allow all Netlify subdomains
+  ],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Handle preflight requests
+app.options('*', cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -103,7 +105,7 @@ app.post('/api/auth/register', async (req, res) => {
     res.status(201).json({ 
       message: 'User registered successfully', 
       user: result.rows[0],
-      token: 'temp-token-' + Date.now() // Temporary token for frontend
+      token: 'temp-token-' + Date.now()
     });
 
   } catch (err) {
@@ -160,7 +162,7 @@ app.post('/api/auth/login', async (req, res) => {
         role: user.role,
         faculty: user.faculty,
       },
-      token: 'temp-token-' + Date.now() // Temporary token
+      token: 'temp-token-' + Date.now()
     });
 
   } catch (err) {
@@ -275,4 +277,5 @@ if (process.env.NODE_ENV === 'production') {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ CORS configured for frontend domains`);
 });
