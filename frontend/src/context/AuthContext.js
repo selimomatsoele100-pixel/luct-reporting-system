@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import api from './axios';
+import api from './services/api'; // Import the correct api service
 
 const AuthContext = createContext();
 
@@ -49,7 +49,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      throw error;
+      console.error('Login error:', error);
+      throw new Error(error.response?.data?.error || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -70,7 +71,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      throw error;
+      console.error('Registration error:', error);
+      throw new Error(error.response?.data?.error || 'Registration failed');
     } finally {
       setLoading(false);
     }
