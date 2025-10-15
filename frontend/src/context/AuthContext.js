@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import api from './services/api'; // Import the correct api service
+import api from '../services/api'; // Make sure this path is correct
 
 const AuthContext = createContext();
 
@@ -38,7 +38,10 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       
+      // Use the api service instead of fetch
       const response = await api.post('/auth/login', { email, password });
+
+      console.log('✅ Login response:', response.data);
 
       if (response.data.user) {
         setUser(response.data.user);
@@ -60,7 +63,10 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       
+      // Use the api service instead of fetch
       const response = await api.post('/auth/register', userData);
+
+      console.log('✅ Registration response:', response.data);
 
       if (response.data.user) {
         setUser(response.data.user);
