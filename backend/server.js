@@ -329,13 +329,21 @@ app.get('/api/classes', async (req, res) => {
       LEFT JOIN users u ON c.assigned_lecturer_id = u.id 
       ORDER BY c.name
     `);
-    res.json({ success: true, classes: result.rows });
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching classes:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch classes: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch classes: ' + err.message });
+  }
+});
+
+// Get classes for courses
+app.get('/api/courses/classes', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM classes ORDER BY name');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Error fetching classes:', err.message);
+    res.status(500).json({ error: 'Failed to fetch classes: ' + err.message });
   }
 });
 
@@ -407,13 +415,10 @@ app.get('/api/courses', async (req, res) => {
       LEFT JOIN users u ON c.assigned_lecturer_id = u.id 
       ORDER BY c.name
     `);
-    res.json({ success: true, courses: result.rows });
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching courses:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch courses: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch courses: ' + err.message });
   }
 });
 
@@ -428,13 +433,10 @@ app.get('/api/users/role/lecturer', async (req, res) => {
       WHERE role = 'lecturer' 
       ORDER BY name
     `);
-    res.json({ success: true, lecturers: result.rows });
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching lecturers:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch lecturers: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch lecturers: ' + err.message });
   }
 });
 
@@ -509,6 +511,8 @@ app.post('/api/reports', async (req, res) => {
       recommendations, lecturer_name, status
     } = req.body;
 
+    console.log('📝 Creating report:', { course_code, course_name, class_name });
+
     if (!course_code || !course_name || !class_name) {
       return res.status(400).json({ 
         success: false,
@@ -535,6 +539,8 @@ app.post('/api/reports', async (req, res) => {
 
     const result = await client.query(insertQuery, values);
     
+    console.log('✅ Report created successfully:', result.rows[0].id);
+
     res.status(201).json({ 
       success: true,
       message: 'Report created successfully', 
@@ -554,44 +560,21 @@ app.post('/api/reports', async (req, res) => {
 app.get('/api/reports/all', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM reports ORDER BY created_at DESC');
-    res.json({ success: true, reports: result.rows });
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching reports:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch reports: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch reports: ' + err.message });
   }
 });
 
 // Get user's own reports
 app.get('/api/reports/my-reports', async (req, res) => {
   try {
-    // For now, return all reports until you implement user-specific logic
     const result = await pool.query('SELECT * FROM reports ORDER BY created_at DESC');
-    res.json({ success: true, reports: result.rows });
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching user reports:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch user reports: ' + err.message 
-    });
-  }
-});
-
-// ======================================================
-// 🏫 CLASSES & COURSES ROUTES - FIXED
-// ======================================================
-app.get('/api/courses/classes', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM classes ORDER BY name');
-    res.json({ success: true, classes: result.rows });
-  } catch (err) {
-    console.error('❌ Error fetching classes:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch classes: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch user reports: ' + err.message });
   }
 });
 
@@ -607,13 +590,10 @@ app.get('/api/complaints', async (req, res) => {
       LEFT JOIN users u2 ON c.complaint_against_id = u2.id
       ORDER BY c.created_at DESC
     `);
-    res.json({ success: true, complaints: result.rows });
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching complaints:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch complaints: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch complaints: ' + err.message });
   }
 });
 
@@ -623,6 +603,8 @@ app.post('/api/complaints', async (req, res) => {
     client = await pool.connect();
     const { complaint_text, complaint_against_id, created_by } = req.body;
     
+    console.log('📝 Creating complaint:', { complaint_against_id, created_by });
+
     if (!complaint_text || !complaint_against_id) {
       return res.status(400).json({ 
         success: false,
@@ -638,6 +620,8 @@ app.post('/api/complaints', async (req, res) => {
     
     const result = await client.query(query, [complaint_text, complaint_against_id, created_by]);
     
+    console.log('✅ Complaint created successfully:', result.rows[0].id);
+
     res.status(201).json({ 
       success: true,
       message: 'Complaint submitted successfully',
@@ -663,13 +647,10 @@ app.get('/api/complaints/my-complaints', async (req, res) => {
       LEFT JOIN users u ON c.complaint_against_id = u.id
       ORDER BY c.created_at DESC
     `);
-    res.json({ success: true, complaints: result.rows });
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching user complaints:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch user complaints: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch user complaints: ' + err.message });
   }
 });
 
@@ -682,13 +663,10 @@ app.get('/api/complaints/against-me', async (req, res) => {
       LEFT JOIN users u ON c.created_by = u.id
       ORDER BY c.created_at DESC
     `);
-    res.json({ success: true, complaints: result.rows });
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching complaints against user:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch complaints against user: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch complaints against user: ' + err.message });
   }
 });
 
@@ -711,22 +689,29 @@ app.get('/api/monitoring/data', async (req, res) => {
     const coursesCount = await pool.query('SELECT COUNT(*) FROM courses');
     
     res.json({
-      success: true,
-      data: {
-        reports: parseInt(reportsCount.rows[0].count),
-        users: parseInt(usersCount.rows[0].count),
-        complaints: parseInt(complaintsCount.rows[0].count),
-        classes: parseInt(classesCount.rows[0].count),
-        courses: parseInt(coursesCount.rows[0].count),
-        recentActivity: reportsResult.rows
-      }
+      reports: parseInt(reportsCount.rows[0].count),
+      users: parseInt(usersCount.rows[0].count),
+      complaints: parseInt(complaintsCount.rows[0].count),
+      classes: parseInt(classesCount.rows[0].count),
+      courses: parseInt(coursesCount.rows[0].count),
+      recentActivity: reportsResult.rows
     });
   } catch (err) {
     console.error('❌ Error fetching monitoring data:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch monitoring data: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch monitoring data: ' + err.message });
+  }
+});
+
+// ======================================================
+// ⭐ RATINGS ROUTES - ADDED (for frontend compatibility)
+// ======================================================
+app.get('/api/ratings', async (req, res) => {
+  try {
+    // Return empty array for now - frontend expects this endpoint
+    res.json([]);
+  } catch (err) {
+    console.error('❌ Error fetching ratings:', err.message);
+    res.status(500).json({ error: 'Failed to fetch ratings: ' + err.message });
   }
 });
 
@@ -736,13 +721,10 @@ app.get('/api/monitoring/data', async (req, res) => {
 app.get('/api/users', async (req, res) => {
   try {
     const result = await pool.query('SELECT id, name, email, role, faculty FROM users ORDER BY name');
-    res.json({ success: true, users: result.rows });
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching users:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch users: ' + err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch users: ' + err.message });
   }
 });
 
@@ -751,6 +733,13 @@ app.get('/api/users', async (req, res) => {
 // ======================================================
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
+  
+  // API routes should not serve HTML
+  app.get('/api/*', (req, res) => {
+    res.status(404).json({ error: 'API route not found' });
+  });
+  
+  // All other routes serve the frontend
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
   });
