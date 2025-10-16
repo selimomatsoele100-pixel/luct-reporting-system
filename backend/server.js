@@ -39,6 +39,50 @@ app.use((req, res, next) => {
   next();
 });
 
+// ======================================================
+// 🗃️ DATABASE SETUP ROUTES
+// ======================================================
+app.get('/api/db/setup', async (req, res) => {
+  try {
+    console.log('🔄 Checking database tables...');
+    
+    // Create tables if they don't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS classes (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        faculty VARCHAR(100) NOT NULL,
+        program VARCHAR(100),
+        total_students INTEGER DEFAULT 0,
+        assigned_lecturer_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Classes table ready');
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS courses (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        faculty VARCHAR(100) NOT NULL,
+        program VARCHAR(100),
+        assigned_lecturer_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Courses table ready');
+
+    res.json({ 
+      message: 'Database tables checked and ready',
+      tables: ['users', 'classes', 'courses', 'reports', 'complaints']
+    });
+  } catch (err) {
+    console.error('❌ Database setup failed:', err.message);
+    res.status(500).json({ error: 'Database setup failed: ' + err.message });
+  }
+});
+
 // Health Check
 app.get('/api/health', async (req, res) => {
   try {
