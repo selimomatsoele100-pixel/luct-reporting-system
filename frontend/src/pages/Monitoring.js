@@ -27,7 +27,8 @@ const Monitoring = () => {
       setError('');
       
       const response = await api.get('/monitoring/data');
-      const data = response.data || [];
+      // FIX: Use recentActivity array instead of the whole object
+      const data = response.data.recentActivity || [];
       
       setAttendanceData(data);
       setFilteredData(data);
