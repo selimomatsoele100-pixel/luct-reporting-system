@@ -8,6 +8,13 @@ const Classes = () => {
   const [classes, setClasses] = useState([]);
   const [lecturers, setLecturers] = useState([]);
   const [assigningClass, setAssigningClass] = useState(null);
+  const [showAddClass, setShowAddClass] = useState(false);
+  const [newClass, setNewClass] = useState({
+    class_name: '',
+    faculty: '',
+    program: '',
+    total_students: ''
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -53,6 +60,33 @@ const Classes = () => {
     }
   };
 
+  const handleAddClass = async (e) => {
+    e.preventDefault();
+    if (!newClass.class_name || !newClass.faculty) {
+      alert('Class name and faculty are required');
+      return;
+    }
+
+    try {
+      await api.post('/classes', {
+        ...newClass,
+        total_students: parseInt(newClass.total_students) || 0
+      });
+      await fetchClasses();
+      setNewClass({
+        class_name: '',
+        faculty: '',
+        program: '',
+        total_students: ''
+      });
+      setShowAddClass(false);
+      alert('Class added successfully!');
+    } catch (error) {
+      console.error('Error adding class:', error);
+      alert('Error adding class');
+    }
+  };
+
   const getLecturerName = (lecturerId) => {
     const lecturer = lecturers.find(l => l.id === lecturerId);
     return lecturer ? lecturer.name : 'Not assigned';
@@ -64,6 +98,77 @@ const Classes = () => {
       <div className="container">
         <h1>Classes Management</h1>
         
+        {/* Add Class Form for PL */}
+        {user?.role === 'pl' && (
+          <div className="card" style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3>Manage Classes</h3>
+              <button 
+                className="btn btn-success"
+                onClick={() => setShowAddClass(!showAddClass)}
+              >
+                {showAddClass ? 'Cancel' : 'Add New Class'}
+              </button>
+            </div>
+            
+            {showAddClass && (
+              <form onSubmit={handleAddClass} style={{ marginTop: '15px', padding: '15px', background: '#1a1a1a', borderRadius: '4px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <div className="form-group">
+                    <label>Class Name *</label>
+                    <input
+                      type="text"
+                      value={newClass.class_name}
+                      onChange={(e) => setNewClass({...newClass, class_name: e.target.value})}
+                      placeholder="e.g., BIT-1A, DIT-2B"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Faculty *</label>
+                    <select
+                      value={newClass.faculty}
+                      onChange={(e) => setNewClass({...newClass, faculty: e.target.value})}
+                      required
+                    >
+                      <option value="">Select Faculty</option>
+                      <option value="FICT">FICT</option>
+                      <option value="FBMG">FBMG</option>
+                      <option value="FABE">FABE</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
+                  <div className="form-group">
+                    <label>Program</label>
+                    <input
+                      type="text"
+                      value={newClass.program}
+                      onChange={(e) => setNewClass({...newClass, program: e.target.value})}
+                      placeholder="e.g., BIT, DIT, BBA"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Total Students</label>
+                    <input
+                      type="number"
+                      value={newClass.total_students}
+                      onChange={(e) => setNewClass({...newClass, total_students: e.target.value})}
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary">
+                    Add Class
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
         <div className="card">
           <h3>All Classes - {user?.faculty} Faculty</h3>
           
@@ -152,6 +257,7 @@ const Classes = () => {
             <div style={{ lineHeight: '1.6' }}>
               <p>As a Program Leader, you can:</p>
               <ul style={{ paddingLeft: '20px', color: '#ccc' }}>
+                <li>Add new classes to the system</li>
                 <li>Assign lecturers to classes within your program</li>
                 <li>Manage class sizes and student counts</li>
                 <li>Reassign classes when necessary</li>

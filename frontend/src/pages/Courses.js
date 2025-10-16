@@ -8,6 +8,13 @@ const Courses = () => {
   const [courses, setCourses] = useState([]);
   const [lecturers, setLecturers] = useState([]);
   const [assigningCourse, setAssigningCourse] = useState(null);
+  const [showAddCourse, setShowAddCourse] = useState(false);
+  const [newCourse, setNewCourse] = useState({
+    course_code: '',
+    course_name: '',
+    faculty: '',
+    program: ''
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -53,6 +60,30 @@ const Courses = () => {
     }
   };
 
+  const handleAddCourse = async (e) => {
+    e.preventDefault();
+    if (!newCourse.course_code || !newCourse.course_name || !newCourse.faculty) {
+      alert('Course code, name, and faculty are required');
+      return;
+    }
+
+    try {
+      await api.post('/courses', newCourse);
+      await fetchCourses();
+      setNewCourse({
+        course_code: '',
+        course_name: '',
+        faculty: '',
+        program: ''
+      });
+      setShowAddCourse(false);
+      alert('Course added successfully!');
+    } catch (error) {
+      console.error('Error adding course:', error);
+      alert('Error adding course');
+    }
+  };
+
   const getLecturerName = (lecturerId) => {
     const lecturer = lecturers.find(l => l.id === lecturerId);
     return lecturer ? lecturer.name : 'Not assigned';
@@ -63,6 +94,77 @@ const Courses = () => {
       <Navigation />
       <div className="container">
         <h1>Courses Management</h1>
+        
+        {/* Add Course Form for PL */}
+        {user?.role === 'pl' && (
+          <div className="card" style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3>Manage Courses</h3>
+              <button 
+                className="btn btn-success"
+                onClick={() => setShowAddCourse(!showAddCourse)}
+              >
+                {showAddCourse ? 'Cancel' : 'Add New Course'}
+              </button>
+            </div>
+            
+            {showAddCourse && (
+              <form onSubmit={handleAddCourse} style={{ marginTop: '15px', padding: '15px', background: '#1a1a1a', borderRadius: '4px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <div className="form-group">
+                    <label>Course Code *</label>
+                    <input
+                      type="text"
+                      value={newCourse.course_code}
+                      onChange={(e) => setNewCourse({...newCourse, course_code: e.target.value})}
+                      placeholder="e.g., WD101, DB201"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Course Name *</label>
+                    <input
+                      type="text"
+                      value={newCourse.course_name}
+                      onChange={(e) => setNewCourse({...newCourse, course_name: e.target.value})}
+                      placeholder="e.g., Web Development, Database Systems"
+                      required
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
+                  <div className="form-group">
+                    <label>Faculty *</label>
+                    <select
+                      value={newCourse.faculty}
+                      onChange={(e) => setNewCourse({...newCourse, faculty: e.target.value})}
+                      required
+                    >
+                      <option value="">Select Faculty</option>
+                      <option value="FICT">FICT</option>
+                      <option value="FBMG">FBMG</option>
+                      <option value="FABE">FABE</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Program</label>
+                    <input
+                      type="text"
+                      value={newCourse.program}
+                      onChange={(e) => setNewCourse({...newCourse, program: e.target.value})}
+                      placeholder="e.g., BIT, DIT, BBA"
+                    />
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary">
+                    Add Course
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
         
         <div className="card">
           <h3>All Courses - {user?.faculty} Faculty</h3>
@@ -152,6 +254,7 @@ const Courses = () => {
             <div style={{ lineHeight: '1.6' }}>
               <p>As a Program Leader, you can:</p>
               <ul style={{ paddingLeft: '20px', color: '#ccc' }}>
+                <li>Add new courses to the system</li>
                 <li>Assign lecturers to courses within your program</li>
                 <li>Reassign courses when necessary</li>
                 <li>Ensure all courses have assigned lecturers</li>
