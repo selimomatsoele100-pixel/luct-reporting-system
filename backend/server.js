@@ -423,6 +423,25 @@ app.get('/api/courses', async (req, res) => {
 });
 
 // ======================================================
+// 👥 GET USERS BY ROLE - ADDED MISSING ENDPOINT
+// ======================================================
+app.get('/api/users/role/:role', async (req, res) => {
+  try {
+    const { role } = req.params;
+    const result = await pool.query(`
+      SELECT id, name, email, faculty 
+      FROM users 
+      WHERE role = $1 
+      ORDER BY name
+    `, [role]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Error fetching users by role:', err.message);
+    res.status(500).json({ error: 'Failed to fetch users: ' + err.message });
+  }
+});
+
+// ======================================================
 // 👥 GET LECTURERS BY ROLE
 // ======================================================
 app.get('/api/users/role/lecturer', async (req, res) => {
