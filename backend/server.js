@@ -171,6 +171,119 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ======================================================
+// 🏫 CLASSES MANAGEMENT ROUTES
+// ======================================================
+app.post('/api/classes', async (req, res) => {
+  try {
+    const { class_name, faculty, program, total_students } = req.body;
+
+    if (!class_name || !faculty) {
+      return res.status(400).json({ error: 'Class name and faculty are required' });
+    }
+
+    const query = `
+      INSERT INTO classes (name, faculty, program, total_students)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *;
+    `;
+    
+    const result = await pool.query(query, [class_name, faculty, program || 'General', total_students || 0]);
+    
+    res.status(201).json({ 
+      message: 'Class created successfully',
+      class: result.rows[0]
+    });
+  } catch (err) {
+    console.error('❌ Error creating class:', err.message);
+    res.status(500).json({ error: 'Failed to create class: ' + err.message });
+  }
+});
+
+// ======================================================
+// 📚 COURSES MANAGEMENT ROUTES
+// ======================================================
+app.post('/api/courses', async (req, res) => {
+  try {
+    const { course_code, course_name, faculty, program } = req.body;
+
+    if (!course_code || !course_name || !faculty) {
+      return res.status(400).json({ error: 'Course code, name and faculty are required' });
+    }
+
+    // Check if course code already exists
+    const exists = await pool.query('SELECT id FROM courses WHERE code = $1', [course_code]);
+    if (exists.rows.length > 0) {
+      return res.status(409).json({ error: 'Course code already exists' });
+    }
+
+    const query = `
+      INSERT INTO courses (code, name, faculty, program)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *;
+    `;
+    
+    const result = await pool.query(query, [course_code, course_name, faculty, program || 'General']);
+    
+    res.status(201).json({ 
+      message: 'Course created successfully',
+      course: result.rows[0]
+    });
+  } catch (err) {
+    console.error('❌ Error creating course:', err.message);
+    res.status(500).json({ error: 'Failed to create course: ' + err.message });
+  }
+});
+
+// ======================================================
+// 👥 GET LECTURERS BY ROLE
+// ======================================================
+app.get('/api/users/role/lecturer', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, email, faculty 
+      FROM users 
+      WHERE role = 'lecturer' 
+      ORDER BY name
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Error fetching lecturers:', err.message);
+    res.status(500).json({ error: 'Failed to fetch lecturers' });
+  }
+});
+
+// ======================================================
+// 🔗 ASSIGNMENT ROUTES
+// ======================================================
+app.post('/api/courses/assign-class', async (req, res) => {
+  try {
+    const { classId, lecturerId } = req.body;
+    
+    const query = `UPDATE classes SET assigned_lecturer_id = $1 WHERE id = $2 RETURNING *`;
+    const result = await pool.query(query, [lecturerId, classId]);
+    
+    res.json({ message: 'Class assigned successfully', class: result.rows[0] });
+  } catch (err) {
+    console.error('❌ Error assigning class:', err.message);
+    res.status(500).json({ error: 'Failed to assign class' });
+  }
+});
+
+app.post('/api/courses/assign-course', async (req, res) => {
+  try {
+    const { courseId, lecturerId } = req.body;
+    
+    const query = `UPDATE courses SET assigned_lecturer_id = $1 WHERE id = $2 RETURNING *`;
+    const result = await pool.query(query, [lecturerId, courseId]);
+    
+    res.json({ message: 'Course assigned successfully', course: result.rows[0] });
+  } catch (err) {
+    console.error('❌ Error assigning course:', err.message);
+    res.status(500).json({ error: 'Failed to assign course' });
+  }
+});
+
+// ======================================================
 // 🧾 REPORT ROUTES
 // ======================================================
 app.post('/api/reports', async (req, res) => {
@@ -238,8 +351,8 @@ app.get('/api/reports/my-reports', async (req, res) => {
 // ======================================================
 app.get('/api/courses/classes', async (req, res) => {
   try {
-    const result = await pool.query('SELECT DISTINCT class_name FROM reports ORDER BY class_name');
-    res.json(result.rows.length > 0 ? result.rows : []);
+    const result = await pool.query('SELECT * FROM classes ORDER BY name');
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Error fetching classes:', err.message);
     res.json([]);
@@ -312,11 +425,17 @@ app.get('/api/complaints/against-me', async (req, res) => {
 });
 
 // ======================================================
-// 📊 MONITORING ROUTES
+// 📊 MONITORING ROUTES - FIXED
 // ======================================================
 app.get('/api/monitoring/data', async (req, res) => {
   try {
-    // Return basic monitoring data
+    // Return actual reports data for monitoring
+    const reportsResult = await pool.query(`
+      SELECT * FROM reports 
+      ORDER BY created_at DESC 
+      LIMIT 50
+    `);
+    
     const reportsCount = await pool.query('SELECT COUNT(*) FROM reports');
     const usersCount = await pool.query('SELECT COUNT(*) FROM users');
     const complaintsCount = await pool.query('SELECT COUNT(*) FROM complaints');
@@ -325,7 +444,7 @@ app.get('/api/monitoring/data', async (req, res) => {
       reports: parseInt(reportsCount.rows[0].count),
       users: parseInt(usersCount.rows[0].count),
       complaints: parseInt(complaintsCount.rows[0].count),
-      recentActivity: []
+      recentActivity: reportsResult.rows // This is now an array for the frontend
     });
   } catch (err) {
     console.error('❌ Error fetching monitoring data:', err.message);
@@ -333,7 +452,7 @@ app.get('/api/monitoring/data', async (req, res) => {
       reports: 0,
       users: 0,
       complaints: 0,
-      recentActivity: []
+      recentActivity: [] // Always return array, not object
     });
   }
 });
