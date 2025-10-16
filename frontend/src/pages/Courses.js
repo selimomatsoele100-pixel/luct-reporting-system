@@ -28,7 +28,9 @@ const Courses = () => {
     try {
       setLoading(true);
       const response = await api.get('/courses');
-      setCourses(response.data);
+      // Handle both response formats
+      const coursesData = Array.isArray(response.data) ? response.data : (response.data.courses || []);
+      setCourses(coursesData);
     } catch (error) {
       console.error('Error fetching courses:', error);
       alert('Error loading courses');
@@ -40,7 +42,9 @@ const Courses = () => {
   const fetchLecturers = async () => {
     try {
       const response = await api.get('/users/role/lecturer');
-      setLecturers(response.data);
+      // Handle both response formats
+      const lecturersData = Array.isArray(response.data) ? response.data : (response.data.lecturers || []);
+      setLecturers(lecturersData);
     } catch (error) {
       console.error('Error fetching lecturers:', error);
     }
@@ -189,8 +193,8 @@ const Courses = () => {
                 <tbody>
                   {courses.map(course => (
                     <tr key={course.id}>
-                      <td><strong>{course.course_code}</strong></td>
-                      <td>{course.course_name}</td>
+                      <td><strong>{course.code || course.course_code}</strong></td>
+                      <td>{course.name || course.course_name}</td>
                       <td>{course.faculty}</td>
                       <td>{course.program || 'General'}</td>
                       <td>

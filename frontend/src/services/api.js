@@ -28,10 +28,32 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor - UPDATED to handle new response format
 api.interceptors.response.use(
   (response) => {
     console.log(`✅ Response received: ${response.status}`, response.data);
+    
+    // Handle the new response format {success: true, data: [...]}
+    if (response.data && typeof response.data === 'object' && response.data.success !== undefined) {
+      // If the response has the new format, extract the data
+      if (response.data.courses !== undefined) {
+        response.data = response.data.courses;
+      } else if (response.data.classes !== undefined) {
+        response.data = response.data.classes;
+      } else if (response.data.lecturers !== undefined) {
+        response.data = response.data.lecturers;
+      } else if (response.data.users !== undefined) {
+        response.data = response.data.users;
+      } else if (response.data.reports !== undefined) {
+        response.data = response.data.reports;
+      } else if (response.data.complaints !== undefined) {
+        response.data = response.data.complaints;
+      } else if (response.data.data !== undefined) {
+        response.data = response.data.data;
+      }
+      // If no specific data field, keep the original response but maintain compatibility
+    }
+    
     return response;
   },
   (error) => {

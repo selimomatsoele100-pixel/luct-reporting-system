@@ -28,7 +28,9 @@ const Classes = () => {
     try {
       setLoading(true);
       const response = await api.get('/courses/classes');
-      setClasses(response.data);
+      // Handle both response formats
+      const classesData = Array.isArray(response.data) ? response.data : (response.data.classes || []);
+      setClasses(classesData);
     } catch (error) {
       console.error('Error fetching classes:', error);
       alert('Error loading classes');
@@ -40,7 +42,9 @@ const Classes = () => {
   const fetchLecturers = async () => {
     try {
       const response = await api.get('/users/role/lecturer');
-      setLecturers(response.data);
+      // Handle both response formats
+      const lecturersData = Array.isArray(response.data) ? response.data : (response.data.lecturers || []);
+      setLecturers(lecturersData);
     } catch (error) {
       console.error('Error fetching lecturers:', error);
     }
@@ -192,7 +196,7 @@ const Classes = () => {
                 <tbody>
                   {classes.map(classItem => (
                     <tr key={classItem.id}>
-                      <td><strong>{classItem.class_name}</strong></td>
+                      <td><strong>{classItem.name || classItem.class_name}</strong></td>
                       <td>{classItem.faculty}</td>
                       <td>{classItem.program || 'General'}</td>
                       <td>{classItem.total_students}</td>
@@ -284,7 +288,7 @@ const Classes = () => {
               <div style={{ marginTop: '15px', padding: '10px', background: '#1a1a1a', borderRadius: '4px' }}>
                 <p style={{ margin: 0, color: '#ccc' }}>
                   <strong>Your Class:</strong> {user?.class_id ? 
-                    classes.find(c => c.id === user.class_id)?.class_name || 'Not specified' 
+                    classes.find(c => c.id === user.class_id)?.name || classes.find(c => c.id === user.class_id)?.class_name || 'Not specified' 
                     : 'Not assigned to any class'}
                 </p>
               </div>
