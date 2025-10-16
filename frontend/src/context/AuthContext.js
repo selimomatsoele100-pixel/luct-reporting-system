@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import api from '../services/api'; // Make sure this path is correct
+import api from '../services/api'; // Make sure this import path is correct
 
 const AuthContext = createContext();
 
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      // Use the api service instead of fetch
+      // ✅ USE AXIOS API SERVICE - NOT FETCH
       const response = await api.post('/auth/login', { email, password });
 
       console.log('✅ Login response:', response.data);
@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      // Use the api service instead of fetch
+      // ✅ USE AXIOS API SERVICE - NOT FETCH
       const response = await api.post('/auth/register', userData);
 
       console.log('✅ Registration response:', response.data);
