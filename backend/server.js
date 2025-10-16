@@ -215,14 +215,19 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ======================================================
-// 🏫 CLASSES MANAGEMENT ROUTES
+// 🏫 CLASSES MANAGEMENT ROUTES - FIXED
 // ======================================================
 app.post('/api/classes', async (req, res) => {
   try {
     const { class_name, faculty, program, total_students } = req.body;
 
+    console.log('📝 Adding class:', { class_name, faculty, program, total_students });
+
     if (!class_name || !faculty) {
-      return res.status(400).json({ error: 'Class name and faculty are required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Class name and faculty are required'
+      });
     }
 
     const query = `
@@ -231,33 +236,53 @@ app.post('/api/classes', async (req, res) => {
       RETURNING *;
     `;
     
-    const result = await pool.query(query, [class_name, faculty, program || 'General', total_students || 0]);
+    const result = await pool.query(query, [
+      class_name, 
+      faculty, 
+      program || 'General', 
+      parseInt(total_students) || 0
+    ]);
     
+    console.log('✅ Class created successfully:', result.rows[0]);
+
     res.status(201).json({ 
+      success: true,
       message: 'Class created successfully',
       class: result.rows[0]
     });
+
   } catch (err) {
     console.error('❌ Error creating class:', err.message);
-    res.status(500).json({ error: 'Failed to create class: ' + err.message });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to create class: ' + err.message 
+    });
   }
 });
 
 // ======================================================
-// 📚 COURSES MANAGEMENT ROUTES
+// 📚 COURSES MANAGEMENT ROUTES - FIXED
 // ======================================================
 app.post('/api/courses', async (req, res) => {
   try {
     const { course_code, course_name, faculty, program } = req.body;
 
+    console.log('📝 Adding course:', { course_code, course_name, faculty, program });
+
     if (!course_code || !course_name || !faculty) {
-      return res.status(400).json({ error: 'Course code, name and faculty are required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Course code, name and faculty are required' 
+      });
     }
 
     // Check if course code already exists
     const exists = await pool.query('SELECT id FROM courses WHERE code = $1', [course_code]);
     if (exists.rows.length > 0) {
-      return res.status(409).json({ error: 'Course code already exists' });
+      return res.status(409).json({ 
+        success: false,
+        error: 'Course code already exists' 
+      });
     }
 
     const query = `
@@ -266,15 +291,27 @@ app.post('/api/courses', async (req, res) => {
       RETURNING *;
     `;
     
-    const result = await pool.query(query, [course_code, course_name, faculty, program || 'General']);
+    const result = await pool.query(query, [
+      course_code, 
+      course_name, 
+      faculty, 
+      program || 'General'
+    ]);
     
+    console.log('✅ Course created successfully:', result.rows[0]);
+
     res.status(201).json({ 
+      success: true,
       message: 'Course created successfully',
       course: result.rows[0]
     });
+
   } catch (err) {
     console.error('❌ Error creating course:', err.message);
-    res.status(500).json({ error: 'Failed to create course: ' + err.message });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to create course: ' + err.message 
+    });
   }
 });
 
@@ -297,19 +334,28 @@ app.get('/api/users/role/lecturer', async (req, res) => {
 });
 
 // ======================================================
-// 🔗 ASSIGNMENT ROUTES
+// 🔗 ASSIGNMENT ROUTES - FIXED
 // ======================================================
 app.post('/api/courses/assign-class', async (req, res) => {
   try {
     const { classId, lecturerId } = req.body;
     
+    console.log('🔗 Assigning class:', { classId, lecturerId });
+    
     const query = `UPDATE classes SET assigned_lecturer_id = $1 WHERE id = $2 RETURNING *`;
     const result = await pool.query(query, [lecturerId, classId]);
     
-    res.json({ message: 'Class assigned successfully', class: result.rows[0] });
+    res.json({ 
+      success: true,
+      message: 'Class assigned successfully', 
+      class: result.rows[0] 
+    });
   } catch (err) {
     console.error('❌ Error assigning class:', err.message);
-    res.status(500).json({ error: 'Failed to assign class' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to assign class: ' + err.message 
+    });
   }
 });
 
@@ -317,13 +363,22 @@ app.post('/api/courses/assign-course', async (req, res) => {
   try {
     const { courseId, lecturerId } = req.body;
     
+    console.log('🔗 Assigning course:', { courseId, lecturerId });
+    
     const query = `UPDATE courses SET assigned_lecturer_id = $1 WHERE id = $2 RETURNING *`;
     const result = await pool.query(query, [lecturerId, courseId]);
     
-    res.json({ message: 'Course assigned successfully', course: result.rows[0] });
+    res.json({ 
+      success: true,
+      message: 'Course assigned successfully', 
+      course: result.rows[0] 
+    });
   } catch (err) {
     console.error('❌ Error assigning course:', err.message);
-    res.status(500).json({ error: 'Failed to assign course' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to assign course: ' + err.message 
+    });
   }
 });
 
